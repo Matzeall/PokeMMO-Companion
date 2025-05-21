@@ -8,7 +8,7 @@ edition = "2024"
 # ——— GUI: egui + eframe (uses winit/glow internally) ——————————————————————————
 eframe = "0.31" # egui app framework (with native runtimes & boilerplate already done in app trait)
 egui = "0.31"   # core immediate‐mode GUI library
-
+# eframe dependencies, i think
 winapi = { version = "0.3", features = ["winuser"] }
 windows-sys = { version = "0.59", features = [
   "Win32_Foundation",
@@ -19,13 +19,6 @@ windows-sys = { version = "0.59", features = [
 # ——— Raw window handles (also used by eframe internally) ————————————————————————
 raw-window-handle = "0.6" # gives me HWND/WlSurface/Window under the hood, when I need functionality that exceeds eframe
 
-# ——— Windows APIs via windows‐rs ————————————————————————————————————————
-windows = { version = "0.61", features = [
-  "Win32_Foundation",             # HWND, BOOL, etc.
-  "Win32_UI_WindowsAndMessaging", # CreateWindowExW, RegisterHotKey, GetMessageW…
-  "Win32_System_LibraryLoader",   # GetModuleHandle, if needed
-] }
-
 # ——— X11 support ————————————————————————————————————————————————
 x11 = "2.18.2" # Exposes Xlib and XFixes bindings for ARGB visuals, shape/input regions, key grabs
 
@@ -33,7 +26,16 @@ x11 = "2.18.2" # Exposes Xlib and XFixes bindings for ARGB visuals, shape/input 
 # layer‑shell protocol via Smithay toolkit (only compiled with the `wayland` feature)
 smithay-client-toolkit = { version = "0.19.2", optional = true }
 
+
+# windows specific dependencies
+[target.'cfg(windows)'.dependencies]
+# ——— Windows APIs via windows‐rs ————————————————————————————————————————
+windows = { version = "0.61", features = [
+  "Win32_Foundation",             # HWND, BOOL, etc.
+  "Win32_UI_WindowsAndMessaging", # CreateWindowExW, RegisterHotKey, GetMessageW…
+  "Win32_System_LibraryLoader",   # GetModuleHandle, if needed
+] }
+
+
 [features]
-# Enable Wayland overlay code (layer‑shell). If you build without this,
-# only Windows & X11 codepaths will be compiled.
 wayland = ["smithay-client-toolkit"]
