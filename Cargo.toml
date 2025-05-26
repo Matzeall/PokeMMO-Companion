@@ -26,6 +26,8 @@ x11 = "2.18.2" # Exposes Xlib and XFixes bindings for ARGB visuals, shape/input 
 # layer‑shell protocol via Smithay toolkit (only compiled with the `wayland` feature)
 smithay-client-toolkit = { version = "0.19.2", optional = true }
 
+strum = "0.27"        # for the IntoEnumIterator trait
+strum_macros = "0.27" # for #[derive(EnumIter)]
 
 # windows specific dependencies
 [target.'cfg(windows)'.dependencies]
