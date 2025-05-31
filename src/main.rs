@@ -1,6 +1,7 @@
 mod app;
 mod backend;
 mod color_palette;
+mod feature_state;
 mod gui;
 
 use app::OverlayApp;

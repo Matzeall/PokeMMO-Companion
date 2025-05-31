@@ -1,12 +1,10 @@
 // contains all helper functions to render UI to keep the update function in app.rs clean
 
 use egui::{Align2, Button, Color32, Vec2};
+use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use strum::IntoEnumIterator;
 
-use crate::{
-    app::{Feature, OverlayApp},
-    color_palette,
-};
+use crate::{app::OverlayApp, color_palette, feature_state::Feature};
 
 pub fn draw_control_panel(ctx: &egui::Context, state: &mut OverlayApp) {
     egui::Window::new("ControlPanel")
@@ -25,12 +23,15 @@ pub fn draw_control_panel(ctx: &egui::Context, state: &mut OverlayApp) {
                     let feature_name = format!("{:?}", feature);
                     let mut feature_button = Button::new(feature_name).corner_radius(20);
 
-                    if state.is_feature_active(feature) {
+                    if state.features.is_feature_active(feature) {
                         feature_button = feature_button.selected(true);
                     }
 
                     if ui.add(feature_button).clicked() {
-                        state.set_feature_active(feature, !state.is_feature_active(feature));
+                        state.features.set_feature_active(
+                            feature,
+                            !state.features.is_feature_active(feature),
+                        );
                     }
                 }
                 let close_btn = Button::new("close")
@@ -62,7 +63,7 @@ fn add_base_window(
     ctx: &egui::Context,
     window_name: impl Into<egui::WidgetText>,
     open_state: &mut bool,
-    add_contents: impl Fn(&mut egui::Ui), // I am sure only the rust compiler knows what type that is
+    add_contents: impl FnOnce(&mut egui::Ui), // I am sure only the rust compiler knows what type that is
 ) {
     egui::Window::new(window_name)
         .frame(color_palette::CUSTOM_FRAME)
@@ -85,41 +86,51 @@ pub fn draw_notes_panel(ctx: &egui::Context, state: &mut OverlayApp) {
     add_base_window(
         ctx,
         "Notes",
-        state.get_feature_active_mut_ref(Feature::Notes),
+        state.features.get_feature_active_mut_ref(Feature::Notes),
         |_ui| {},
     );
 }
 
 pub fn draw_ressources_panel(ctx: &egui::Context, state: &mut OverlayApp) {
-    add_base_window(
-        ctx,
-        "Ressources",
-        state.get_feature_active_mut_ref(Feature::Ressources),
-        |ui| {
-            ui.label("Hello Ressources");
-            ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
-            ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
-            ui.label("Hello Ressources");
-            ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
-            ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
-            ui.label("Hello Ressources");
-            ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
-            ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
-            ui.label("Hello Ressources");
-            ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
-            ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
-            ui.label("Hello Ressources");
-            ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
-            ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
-        },
-    );
+    // bind to separate local variables to avoid borrowing state twice
+    let window_open = state
+        .features
+        .get_feature_active_mut_ref(Feature::Ressources);
+    let markdown_cache: &mut CommonMarkCache = state.cache.get_mut();
+
+    add_base_window(ctx, "Ressources", window_open, |ui| {
+        ui.label("Hello Ressources");
+        ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
+        ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
+        ui.label("Hello Ressources");
+        ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
+        ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
+        ui.label("Hello Ressources");
+        ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
+        ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
+        ui.label("Hello Ressources");
+        ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
+        ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
+        ui.label("Hello Ressources");
+        ui.hyperlink_to("PokeMMO Info", "https://pokemmo.info");
+        ui.hyperlink_to("EV Hordes","https://forums.pokemmo.com/index.php?/topic/108705-2025-all-horde-locations-ev-and-shiny/");
+        let markdown = r"# Hello world
+
+* A list
+* [ ] Checkbox
+";
+
+        CommonMarkViewer::new().show(ui, markdown_cache, markdown);
+    });
 }
 
 pub fn draw_type_matrix_panel(ctx: &egui::Context, state: &mut OverlayApp) {
     add_base_window(
         ctx,
         "Type Matrix",
-        state.get_feature_active_mut_ref(Feature::TypeMatrix),
+        state
+            .features
+            .get_feature_active_mut_ref(Feature::TypeMatrix),
         |_ui| {},
     );
 }
@@ -128,7 +139,9 @@ pub fn draw_breeding_calculator_panel(ctx: &egui::Context, state: &mut OverlayAp
     add_base_window(
         ctx,
         "Breeding Calculator",
-        state.get_feature_active_mut_ref(Feature::BreedingCalculator),
+        state
+            .features
+            .get_feature_active_mut_ref(Feature::BreedingCalculator),
         |_ui| {},
     );
 }

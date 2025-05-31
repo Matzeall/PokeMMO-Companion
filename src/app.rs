@@ -1,41 +1,28 @@
 // defines runtime data struct -> holds mutable application state
 // is instantiated by main.rs
 
+use std::cell::RefCell;
+
 use eframe::{App, CreationContext, Frame};
+use egui_commonmark::CommonMarkCache;
+
 use egui::Context;
-use std::collections::HashMap;
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 
-use crate::{color_palette, gui};
-
-// implements default Equals & Hash functions so a HashSet<Feature> can be checked for containment.
-// Debug/Display is for printing or str::fmt the enum value name.
-// Clone for passing it without a reference to function without trasfering ownership (by copying it)
-// EnumIter is from the strum & strum_macros crate, allows iterating over all enum values.
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, EnumIter)]
-pub enum Feature {
-    Notes,
-    Ressources,
-    TypeMatrix,
-    BreedingCalculator,
-}
+use crate::{
+    color_palette,
+    feature_state::{Feature, FeatureSubsystem},
+    gui,
+};
 
 pub struct OverlayApp {
     // optional channel for platform messages (hotkeys, toggles…)
     // plat_tx: Sender<PlatformMessage>,
     // plat_rx: Receiver<PlatformMessage>,
-    active_feature_windows: HashMap<Feature, bool>,
+    pub features: FeatureSubsystem,
+    // markdown stuff
+    pub cache: RefCell<CommonMarkCache>, // for runtime borrowing
 }
-/*
-<palette>
-<color rgb='BF4417' r='191' g='67' b='22' />
-<color rgb='59200B' r='89' g='31' b='10' />
-<color rgb='F25922' r='242' g='89' b='33' />
-<color rgb='F2F2F2' r='242' g='242' b='242' />
-<color rgb='0D0D0D' r='12' g='12' b='12' />
-</palette>
-*/
+
 impl OverlayApp {
     fn setup_global_application_style(&mut self, cc: &CreationContext<'_>) {
         let mut style = (*cc.egui_ctx.style()).clone();
@@ -70,33 +57,14 @@ impl OverlayApp {
         //
         // Send events back via a channel that you poll in update().
 
-        // init map with all feature values + false
-        let active_feature_windows = Feature::iter().map(|f| (f, false)).collect();
         let mut app = Self {
-            active_feature_windows,
+            features: FeatureSubsystem::new(),
+            cache: RefCell::new(CommonMarkCache::default()),
         };
 
         app.setup_global_application_style(cc);
 
         app
-    }
-
-    pub fn set_feature_active(&mut self, feature: Feature, enabled: bool) {
-        self.active_feature_windows.insert(feature, enabled);
-        println!("set {feature:#?} to {enabled}");
-    }
-
-    pub fn is_feature_active(&self, feature: Feature) -> bool {
-        self.active_feature_windows
-            .get(&feature)
-            .cloned()
-            .unwrap_or(false)
-    }
-
-    pub fn get_feature_active_mut_ref(&mut self, feature: Feature) -> &mut bool {
-        self.active_feature_windows
-            .get_mut(&feature)
-            .expect("every feature should be contained in the map after app init")
     }
 }
 
@@ -111,19 +79,19 @@ impl App for OverlayApp {
         // draw UI based on AppState
         gui::draw_control_panel(ctx, self);
 
-        if self.is_feature_active(Feature::Ressources) {
+        if self.features.is_feature_active(Feature::Ressources) {
             gui::draw_ressources_panel(ctx, self);
         }
 
-        if self.is_feature_active(Feature::Notes) {
+        if self.features.is_feature_active(Feature::Notes) {
             gui::draw_notes_panel(ctx, self);
         }
 
-        if self.is_feature_active(Feature::TypeMatrix) {
+        if self.features.is_feature_active(Feature::TypeMatrix) {
             gui::draw_type_matrix_panel(ctx, self);
         }
 
-        if self.is_feature_active(Feature::BreedingCalculator) {
+        if self.features.is_feature_active(Feature::BreedingCalculator) {
             gui::draw_breeding_calculator_panel(ctx, self);
         }
 

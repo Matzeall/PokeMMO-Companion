@@ -6,8 +6,12 @@ edition = "2024"
 
 [dependencies]
 # ——— GUI: egui + eframe (uses winit/glow internally) ——————————————————————————
-eframe = "0.31" # egui app framework (with native runtimes & boilerplate already done in app trait)
-egui = "0.31"   # core immediate‐mode GUI library
+eframe = "0.31"          # egui app framework (with native runtimes & boilerplate already done in app trait)
+egui = "0.31"            # core immediate‐mode GUI library
+egui_commonmark = "0.20"
+# for images in markdown:
+image = { version = "0.25", default-features = false, features = ["png"] }
+
 # eframe dependencies, i think
 winapi = { version = "0.3", features = ["winuser"] }
 windows-sys = { version = "0.59", features = [
