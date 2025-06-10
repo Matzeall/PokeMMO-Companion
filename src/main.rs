@@ -1,8 +1,8 @@
 mod app;
 mod backend;
-mod color_palette;
-mod feature_state;
 mod gui;
+mod style;
+mod utils;
 
 use app::OverlayApp;
 use eframe::{CreationContext, NativeOptions, run_native};
@@ -14,7 +14,7 @@ fn main() {
             builder
                 .with_maximized(true)
                 // remove window decorations (titlebar, borders):
-                .with_decorations(true)
+                .with_decorations(false)
                 // allow per-pixel transparency:
                 .with_transparent(true)
                 .with_mouse_passthrough(false)

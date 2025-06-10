@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use egui::{InputState, Key};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -13,6 +14,11 @@ pub enum Feature {
     Ressources,
     TypeMatrix,
     BreedingCalculator,
+}
+impl Feature {
+    pub fn get_name(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 pub struct FeatureSubsystem {
@@ -44,5 +50,32 @@ impl FeatureSubsystem {
         self.active_feature_windows
             .get_mut(&feature)
             .expect("every feature should be contained in the map after app init")
+    }
+
+    pub fn handle_feature_state_input(&mut self, input: InputState) {
+        // TODO: consume shortcuts when pressed so they don't effect anything else
+        // like the Notes text edit, which always starts with an n inside when opened by alt+N
+
+        if input.key_pressed(Key::N) && input.modifiers.alt {
+            self.set_feature_active(Feature::Notes, !self.is_feature_active(Feature::Notes));
+        }
+        if input.key_pressed(Key::R) && input.modifiers.alt {
+            self.set_feature_active(
+                Feature::Ressources,
+                !self.is_feature_active(Feature::Ressources),
+            );
+        }
+        if input.key_pressed(Key::T) && input.modifiers.alt {
+            self.set_feature_active(
+                Feature::TypeMatrix,
+                !self.is_feature_active(Feature::TypeMatrix),
+            );
+        }
+        if input.key_pressed(Key::B) && input.modifiers.alt {
+            self.set_feature_active(
+                Feature::BreedingCalculator,
+                !self.is_feature_active(Feature::BreedingCalculator),
+            );
+        }
     }
 }

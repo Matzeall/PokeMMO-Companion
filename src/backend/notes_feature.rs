@@ -1,0 +1,148 @@
+use egui::{
+    FontId, Stroke, TextFormat, TextStyle, Ui,
+    text::{LayoutJob, LayoutSection},
+};
+use egui_commonmark::CommonMarkCache;
+use regex::Regex;
+
+pub struct NotesSubsystem {
+    pub text: String,
+    pub cache: CommonMarkCache,
+}
+
+impl NotesSubsystem {
+    pub fn new() -> Self {
+        Self {
+            text: String::new(),
+            cache: CommonMarkCache::default(),
+        }
+        // TODO: load from disk
+    }
+}
+
+pub fn get_notes_textedit_layouter(
+    ctx: &egui::Context,
+) -> impl Fn(&Ui, &str, f32) -> std::sync::Arc<egui::Galley> {
+    // I am convinced that only the rust analyzer can understand the return type of this function
+    |ui: &Ui, text: &str, wrap_width: f32| {
+        // define text stlyes for tags
+        let normal_font = ctx.style().text_styles[&TextStyle::Body].clone();
+        let normal = TextFormat {
+            font_id: normal_font.clone(),
+            italics: false,
+            underline: Default::default(),
+            strikethrough: Default::default(),
+            background: Default::default(),
+            color: ctx.style().visuals.widgets.noninteractive.fg_stroke.color,
+            extra_letter_spacing: Default::default(),
+            line_height: Default::default(),
+            valign: Default::default(),
+        };
+        let heading = TextFormat { ..normal.clone() };
+
+        // Emphasis (italic):
+        let italic = TextFormat {
+            italics: true,
+            ..normal.clone()
+        };
+        // Strong (bold-ish):
+        let underlined = TextFormat {
+            underline: Stroke {
+                width: 1.,
+                color: ctx.style().visuals.widgets.noninteractive.fg_stroke.color,
+            }, // underline instead as bold doesn't seem possible
+            ..normal.clone()
+        };
+        // Inline code:
+        let code = TextFormat {
+            font_id: FontId::monospace(normal_font.size - 1.),
+            background: egui::Color32::from_gray(30),
+            color: egui::Color32::LIGHT_YELLOW,
+            ..normal.clone()
+        };
+
+        // TODO: optimize -> compile regex once statically // once_cell::sync::Lazy
+        let code_re = Regex::new(r"`+[^`]+?`+").unwrap();
+        let italic_re = Regex::new(r"\*[^*\n]+?\*").unwrap();
+        let underline_re = Regex::new(r"_[^_]+?_").unwrap();
+        let head_re = Regex::new(r"(?m)^(#{1,6})\s+(.+)$").unwrap();
+
+        let mut ranges = Vec::new();
+
+        // headings need sizes per level, so do them manually:
+        for cap in head_re.captures_iter(text) {
+            let lvl = cap[1].len(); // number of '#' chars
+            let size = match lvl {
+                1 => 24.0,
+                2 => 20.0,
+                3 => 18.0,
+                4 => 16.0,
+                5 => 15.0,
+                _ => 14.0,
+            };
+            let mut fmt = heading.clone();
+            fmt.font_id.size = size;
+
+            let m = cap.get(0).unwrap();
+            ranges.push((m.start(), m.end(), fmt));
+        }
+
+        // helper to push every capture from a regex
+        let mut push_re = |re: &Regex, fmt: TextFormat| {
+            for m in re.find_iter(text) {
+                ranges.push((m.start(), m.end(), fmt.clone()));
+            }
+        };
+
+        // now inline styles
+        push_re(&code_re, code);
+        push_re(&italic_re, italic);
+        push_re(&underline_re, underlined);
+
+        // Sort by start index
+        ranges.sort_by_key(|r| r.0);
+
+        let mut job = LayoutJob::default();
+        // init with full text -> avoids layout-& source-desyncs
+        job.append(text, 0.0, normal.clone());
+        // clear original text styling sections so i can style on my own, but keep text
+        job.sections.clear();
+
+        // Make sections non-overlapping
+        for (start, end, fmt) in &ranges {
+            // TODO: implement
+        }
+
+        // Build non-overlapping sections
+        let mut last = 0;
+        for (start, end, fmt) in ranges {
+            // push any gap in normal style
+            if start > last {
+                job.sections.push(LayoutSection {
+                    byte_range: last..start,
+                    format: normal.clone(),
+                    leading_space: 0.0,
+                });
+            }
+            // push the styled span
+            job.sections.push(LayoutSection {
+                byte_range: start..end,
+                format: fmt,
+                leading_space: 0.0,
+            });
+            last = end;
+        }
+        // push any tail after the last match
+        if last < text.len() {
+            job.sections.push(LayoutSection {
+                byte_range: last..text.len(),
+                format: normal.clone(),
+                leading_space: 0.0,
+            });
+        }
+
+        job.wrap.max_width = wrap_width;
+
+        ui.fonts(|f| f.layout_job(job))
+    }
+}

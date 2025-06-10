@@ -1,70 +1,86 @@
 // defines runtime data struct -> holds mutable application state
 // is instantiated by main.rs
 
-use std::cell::RefCell;
-
+// TODO:
+// 1. Make notes layouter more robust with overlapping tags
+// 2. update regex patterns in notes layouter
+// 3. different Heading, italic & underlined colors?
+// 4. persist notes -> serde or manual?
+// 5. Finally get to the main app focus issue -> mouse passthrough & unfocussed input events
+// 6. Bring some nice notes layout things over to resources
 use eframe::{App, CreationContext, Frame};
-use egui_commonmark::CommonMarkCache;
-
-use egui::Context;
 
 use crate::{
-    color_palette,
-    feature_state::{Feature, FeatureSubsystem},
-    gui,
+    backend::{
+        feature_state::FeatureSubsystem, notes_feature::NotesSubsystem,
+        ressources_feature::RessourcesSubsystem,
+    },
+    gui::{self, GuiSubsystem},
 };
+use egui::Context;
+
+/// Focused when interacting with any of the windows
+/// Unfocused when seeing the overlay but interacting with something underneath
+/// Hidden when the whole overlay is hidden and needs to be manually unhidden before seeing anything
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+pub enum FocusState {
+    Focused,
+    Unfocused,
+    Hidden,
+}
+
+impl FocusState {
+    pub fn is_focused(&self) -> bool {
+        *self == FocusState::Focused
+    }
+    pub fn is_unfocused(&self) -> bool {
+        *self == FocusState::Unfocused
+    }
+    pub fn is_hidden(&self) -> bool {
+        *self == FocusState::Hidden
+    }
+}
 
 pub struct OverlayApp {
-    // optional channel for platform messages (hotkeys, toggles…)
-    // plat_tx: Sender<PlatformMessage>,
-    // plat_rx: Receiver<PlatformMessage>,
+    pub app_focus: FocusState,
+
     pub features: FeatureSubsystem,
-    // markdown stuff
-    pub cache: RefCell<CommonMarkCache>, // for runtime borrowing
+
+    pub gui: GuiSubsystem,
+
+    pub ressources: RessourcesSubsystem,
+
+    pub notes: NotesSubsystem,
 }
 
 impl OverlayApp {
-    fn setup_global_application_style(&mut self, cc: &CreationContext<'_>) {
-        let mut style = (*cc.egui_ctx.style()).clone();
-
-        // mutate spacing, padding, fonts…
-        style.spacing.item_spacing = egui::Vec2::new(15.0, 8.0);
-        style.spacing.button_padding = egui::Vec2::new(12.0, 6.0);
-        style.text_styles.insert(
-            egui::TextStyle::Button,
-            egui::FontId::new(14.0, egui::FontFamily::Proportional),
-        );
-
-        // BUTTON BG
-        style.visuals.widgets.inactive.weak_bg_fill = color_palette::COLOR_BUTTON_REST; // normal
-        style.visuals.widgets.hovered.weak_bg_fill = color_palette::COLOR_BUTTON_HOVER; // hover
-        style.visuals.widgets.active.weak_bg_fill = color_palette::COLOR_BUTTON_PRESSED; // press
-        style.visuals.selection.bg_fill = color_palette::COLOR_BUTTON_SELECTED; // selected
-
-        // TEXTS
-        style.visuals.widgets.inactive.fg_stroke.color = color_palette::COLOR_TEXT; // normal
-        style.visuals.widgets.hovered.fg_stroke.color = color_palette::COLOR_TEXT; // hover
-        style.visuals.widgets.active.fg_stroke.color = color_palette::COLOR_TEXT; // press
-        style.visuals.selection.stroke.color = color_palette::COLOR_TEXT; // selected
-
-        // apply it back to the context
-        cc.egui_ctx.set_style(style);
-    }
-
     pub fn new(cc: &CreationContext<'_>) -> Self {
-        // Here you could spawn a background thread to register
+        // Here I could spawn a background thread to register
         // RegisterHotKey (windows), XGrabKey (X11), or layer-shell listener (Wayland).
         //
-        // Send events back via a channel that you poll in update().
+        // Send events back via a channel that are polled in update().
 
-        let mut app = Self {
+        Self {
+            app_focus: FocusState::Unfocused,
             features: FeatureSubsystem::new(),
-            cache: RefCell::new(CommonMarkCache::default()),
+            gui: GuiSubsystem::new(cc),
+            ressources: RessourcesSubsystem::new(),
+            notes: NotesSubsystem::new(),
+        }
+    }
+
+    fn update_app_focus(&mut self, ctx: &Context) {
+        let aspired_state: FocusState = if ctx.is_pointer_over_area() {
+            FocusState::Focused
+        } else {
+            FocusState::Unfocused
         };
 
-        app.setup_global_application_style(cc);
-
-        app
+        match (self.app_focus, aspired_state) {
+            (FocusState::Focused, FocusState::Unfocused) => self.app_focus = aspired_state,
+            (FocusState::Unfocused, FocusState::Focused) => self.app_focus = aspired_state,
+            (_, _) => {}
+        }
     }
 }
 
@@ -74,26 +90,16 @@ impl App for OverlayApp {
         // Poll any platform messages:
         // while let Ok(msg) = self.plat_rx.try_recv() { … }
 
-        gui::draw_perf_panel(ctx, frame);
+        self.update_app_focus(ctx);
 
-        // draw UI based on AppState
-        gui::draw_control_panel(ctx, self);
+        self.features
+            .handle_feature_state_input(ctx.input(|i| i.clone()));
 
-        if self.features.is_feature_active(Feature::Ressources) {
-            gui::draw_ressources_panel(ctx, self);
+        if ctx.input(|i| i.key_down(egui::Key::Num0)) {
+            println!("reset window positions and rects");
+            ctx.memory_mut(|m| m.reset_areas());
         }
-
-        if self.features.is_feature_active(Feature::Notes) {
-            gui::draw_notes_panel(ctx, self);
-        }
-
-        if self.features.is_feature_active(Feature::TypeMatrix) {
-            gui::draw_type_matrix_panel(ctx, self);
-        }
-
-        if self.features.is_feature_active(Feature::BreedingCalculator) {
-            gui::draw_breeding_calculator_panel(ctx, self);
-        }
+        gui::draw_gui(ctx, frame, self);
 
         // request repaint if you want a live overlay:
         ctx.request_repaint();
