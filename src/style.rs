@@ -1,5 +1,5 @@
 use eframe::CreationContext;
-use egui::{Color32, CornerRadius, Margin, Shadow, Stroke};
+use egui::{Color32, CornerRadius, Margin, Shadow, Stroke, ThemePreference};
 
 pub const COLOR_BUTTON_REST: Color32 = Color32::from_rgb(191, 67, 22);
 pub const COLOR_BUTTON_HOVER: Color32 = Color32::from_rgb(242, 89, 33);
@@ -17,7 +17,7 @@ pub const CUSTOM_FRAME: egui::containers::Frame = egui::containers::Frame {
     inner_margin: Margin::same(FRAME_PADDING),
     outer_margin: Margin::same(0),
     // corner radius for all corners:
-    corner_radius: CornerRadius::same(20 + FRAME_PADDING.cast_unsigned()),
+    corner_radius: CornerRadius::same(20 + FRAME_PADDING.unsigned_abs()),
     // background fill:
     fill: COLOR_PANEL_BACKGROUND,
     // optional border stroke:
@@ -37,6 +37,7 @@ pub const CUSTOM_FRAME_FOCUSSED: egui::containers::Frame = egui::containers::Fra
 
 pub fn setup_global_application_style(cc: &CreationContext<'_>) {
     let mut style = (*cc.egui_ctx.style()).clone();
+    cc.egui_ctx.set_theme(ThemePreference::Dark);
 
     // spacing, padding
     style.spacing.item_spacing = egui::Vec2::new(15.0, 8.0);

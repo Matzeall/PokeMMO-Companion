@@ -1,5 +1,5 @@
 use egui::{
-    FontId, Stroke, TextFormat, TextStyle, Ui,
+    Color32, FontId, Stroke, TextFormat, TextStyle, Ui,
     text::{LayoutJob, LayoutSection},
 };
 use egui_commonmark::CommonMarkCache;
@@ -18,6 +18,13 @@ impl NotesSubsystem {
         }
         // TODO: load from disk
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum DelimiterType {
+    Nothing,
+    LeadingTrailing,
+    LeadingMany(usize),
 }
 
 pub fn get_notes_textedit_layouter(
@@ -63,9 +70,9 @@ pub fn get_notes_textedit_layouter(
 
         // TODO: optimize -> compile regex once statically // once_cell::sync::Lazy
         let code_re = Regex::new(r"`+[^`]+?`+").unwrap();
-        let italic_re = Regex::new(r"\*[^*\n]+?\*").unwrap();
-        let underline_re = Regex::new(r"_[^_]+?_").unwrap();
-        let head_re = Regex::new(r"(?m)^(#{1,6})\s+(.+)$").unwrap();
+        let italic_re = Regex::new(r"\*[^\n]+?\*").unwrap();
+        let underline_re = Regex::new(r"_[^\n]+?_").unwrap();
+        let head_re = Regex::new(r"(?m)^(#{1,6})[ \t]+(\S[^\r\n]*)$").unwrap(); // (?m)^(#{1,6})\s+(.+)$
 
         let mut ranges = Vec::new();
 
@@ -84,13 +91,18 @@ pub fn get_notes_textedit_layouter(
             fmt.font_id.size = size;
 
             let m = cap.get(0).unwrap();
-            ranges.push((m.start(), m.end(), fmt));
+            ranges.push((m.start(), m.end(), fmt, DelimiterType::LeadingMany(lvl)));
         }
 
         // helper to push every capture from a regex
         let mut push_re = |re: &Regex, fmt: TextFormat| {
             for m in re.find_iter(text) {
-                ranges.push((m.start(), m.end(), fmt.clone()));
+                ranges.push((
+                    m.start(),
+                    m.end(),
+                    fmt.clone(),
+                    DelimiterType::LeadingTrailing,
+                ));
             }
         };
 
@@ -103,46 +115,115 @@ pub fn get_notes_textedit_layouter(
         ranges.sort_by_key(|r| r.0);
 
         let mut job = LayoutJob::default();
+
         // init with full text -> avoids layout-& source-desyncs
         job.append(text, 0.0, normal.clone());
         // clear original text styling sections so i can style on my own, but keep text
         job.sections.clear();
 
-        // Make sections non-overlapping
-        for (start, end, fmt) in &ranges {
-            // TODO: implement
-        }
-
-        // Build non-overlapping sections
+        // Build from non-overlapping sections
         let mut last = 0;
-        for (start, end, fmt) in ranges {
-            // push any gap in normal style
-            if start > last {
-                job.sections.push(LayoutSection {
-                    byte_range: last..start,
-                    format: normal.clone(),
-                    leading_space: 0.0,
-                });
+        for (start, end, fmt, del_type) in ranges {
+            if start < last {
+                if end < last {
+                    // fully contained in some previous element
+                    continue;
+                } else {
+                    // overlapping with some previous element -> render as normal text
+                    push_style(normal.clone(), last, end, DelimiterType::Nothing)
+                        .iter()
+                        .for_each(|section| {
+                            job.sections.push(section.clone());
+                        });
+
+                    last = end;
+                    continue;
+                }
+            } else {
+                // render text since last tag
+                push_style(normal.clone(), last, start, DelimiterType::Nothing)
+                    .iter()
+                    .for_each(|section| {
+                        job.sections.push(section.clone());
+                    });
+
+                //render current tag
+                push_style(fmt.clone(), start, end, del_type)
+                    .iter()
+                    .for_each(|section| {
+                        job.sections.push(section.clone());
+                    });
+
+                last = end;
             }
-            // push the styled span
-            job.sections.push(LayoutSection {
-                byte_range: start..end,
-                format: fmt,
-                leading_space: 0.0,
-            });
-            last = end;
         }
-        // push any tail after the last match
-        if last < text.len() {
-            job.sections.push(LayoutSection {
-                byte_range: last..text.len(),
-                format: normal.clone(),
-                leading_space: 0.0,
-            });
-        }
+        job.sections.push(LayoutSection {
+            byte_range: last..text.len(),
+            format: normal.clone(),
+            leading_space: 0.0,
+        });
 
         job.wrap.max_width = wrap_width;
 
         ui.fonts(|f| f.layout_job(job))
     }
+}
+
+fn push_style(
+    format: TextFormat,
+    start: usize,
+    last: usize,
+    delimiter_type: DelimiterType,
+) -> Vec<LayoutSection> {
+    let mut sections = Vec::new();
+    let delimiter = TextFormat {
+        color: Color32::from_white_alpha(10),
+        italics: false,
+        underline: Stroke {
+            width: 0.,
+            color: Color32::TRANSPARENT,
+        },
+        ..format.clone()
+    };
+
+    println!("start {},  last {}", start, last);
+
+    match delimiter_type {
+        DelimiterType::Nothing => sections.push(LayoutSection {
+            byte_range: start..last,
+            format,
+            leading_space: 0.0,
+        }),
+        DelimiterType::LeadingTrailing => {
+            sections.push(LayoutSection {
+                leading_space: 0.0,
+                byte_range: start..(start + 1),
+                format: delimiter.clone(),
+            });
+            sections.push(LayoutSection {
+                leading_space: 0.0,
+                byte_range: (start + 1)..(last - 1),
+                format,
+            });
+            sections.push(LayoutSection {
+                leading_space: 0.0,
+                byte_range: (last - 1)..last,
+                format: delimiter.clone(),
+            });
+        }
+        DelimiterType::LeadingMany(many) => {
+            sections.push(LayoutSection {
+                leading_space: 0.0,
+                byte_range: start..(start + many),
+                format: delimiter.clone(),
+            });
+            sections.push(LayoutSection {
+                leading_space: 0.0,
+                byte_range: (start + many)..(last),
+                format,
+            });
+        }
+    };
+
+    sections
 }

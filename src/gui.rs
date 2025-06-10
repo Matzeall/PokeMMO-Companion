@@ -279,15 +279,16 @@ pub fn draw_notes_panel(ctx: &egui::Context, state: &mut OverlayApp) {
                             egui::Align::Min,             // top-aligned
                         ));
 
+                    // TODO: help icon scrolls away when text becomes scrollable, maybe it's a feature though
                     ui.allocate_new_ui(overlay_ui_builder, |ui|{
                         ui.style_mut().interaction.tooltip_delay=0.0; // somehow doesn't work?
                         ui.style_mut().interaction.show_tooltips_only_when_still=false;
 
-                        Frame::new().corner_radius(20.).fill(Color32::from_black_alpha(180)).inner_margin(2.)
+                        Frame::new().corner_radius(20.).fill(Color32::from_black_alpha(180)).inner_margin(2.).outer_margin(Vec2::new(15.,0.))
                             .stroke(Stroke{width:0.5, color: Color32::from_white_alpha(180)})
                             .show(ui, |ui| {
                                 ui.add_sized(Vec2::splat(20.),Label::new("?"));                        
-                        }).response.on_hover_text("Simple notes styling:\n# Heading 1\n## Heading 2 etc.\n_underlined_\n*italic*");
+                        }).response.on_hover_text("Simple notes styling:\n# Heading 1\n## Heading 2 ...\n_underlined_\n*italic*");
                     });
 
                 });
