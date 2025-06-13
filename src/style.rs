@@ -11,6 +11,16 @@ pub const COLOR_HYPERLINK: egui::Color32 = Color32::from_rgb(56, 203, 232);
 pub const COLOR_APPLINK_REST: egui::Color32 = Color32::from_rgb(242, 89, 33);
 pub const COLOR_APPLINK_HOVER: egui::Color32 = Color32::from_rgb(242, 89, 33);
 
+pub const COLOR_HEADING_1: Color32 = Color32::from_rgb(255, 205, 41);
+pub const COLOR_HEADING_2: Color32 = Color32::from_rgb(255, 179, 41);
+pub const COLOR_HEADING_3: Color32 = Color32::from_rgb(255, 148, 41);
+pub const COLOR_HEADING_4: Color32 = Color32::from_rgb(255, 110, 41);
+pub const COLOR_HEADING_5: Color32 = Color32::from_rgb(255, 73, 41);
+pub const COLOR_HEADING_6: Color32 = Color32::from_rgb(255, 0, 62);
+
+pub const COLOR_NOTES_UNDERLINED: Color32 = Color32::from_rgb(98, 255, 28);
+pub const COLOR_NOTES_ITALIC: Color32 = Color32::from_rgb(0, 235, 255);
+
 pub const FRAME_PADDING: i8 = 10;
 pub const CUSTOM_FRAME: egui::containers::Frame = egui::containers::Frame {
     // inner and outer padding:

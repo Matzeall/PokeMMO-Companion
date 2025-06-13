@@ -4,29 +4,39 @@ use std::{fs, io::Result, path::PathBuf};
 
 use crate::style;
 
-pub fn find_asset_folder() -> PathBuf {
-    // 1) next to the running binary:
-    let mut exe_folder = std::env::current_exe().expect("current_exe failed");
-    exe_folder.pop(); // strip off the executable name
+// TODO: rethink if proper error handling makes sense here, or if that always needs to panic
+pub fn get_base_folder() -> PathBuf {
+    if let Ok(mut exe_folder) = std::env::current_exe() {
+        exe_folder.pop(); // strip off the executable name
+        exe_folder
+    } else {
+        if let Ok(cwd) = std::env::current_dir() {
+            return cwd;
+        }
+        panic!("Couldn't find base folder to work in");
+    }
+}
 
-    let candidate = exe_folder.join("assets");
+pub fn find_asset_folder() -> PathBuf {
+    const ASSETS_DIR_NAME: &str = "assets";
+
+    let mut base_folder = get_base_folder();
+
+    // prefer project root when in the dev environment
+    if let Ok(current_dir) = std::env::current_dir() {
+        if current_dir.join(ASSETS_DIR_NAME).is_dir() {
+            base_folder = current_dir;
+        }
+    }
+
+    let candidate = base_folder.join(ASSETS_DIR_NAME);
     if candidate.is_dir() {
         return candidate;
     }
 
-    // 2) Fallback: if run with `cargo run` from the project root,
-    //    CWD is the project directory (next to Cargo.toml), so look there:
-    if let Ok(cwd) = std::env::current_dir() {
-        let fallback = cwd.join("assets");
-        if fallback.is_dir() {
-            return fallback;
-        }
-    }
-
     panic!(
-        "Could not locate an `assets` folder. Looked at:\n  {:#?}\n  {:#?}",
-        candidate,
-        std::env::current_dir().unwrap_or_else(|_| "<unknown cwd>".into())
+        "Could not locate an `assets` folder. Looked at:\n  {:#?}",
+        candidate
     );
 }
 

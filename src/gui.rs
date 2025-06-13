@@ -8,7 +8,8 @@ use crate::{
     style, utils,
 };
 use egui::{
-    include_image, widgets::Image, Align2, Color32, Frame, Id, ImageButton, ImageSource, Label, Layout, ScrollArea, Stroke, TextEdit, UiBuilder, Vec2, Window
+    Align2, Color32, Frame, Id, ImageButton, ImageSource, Label, Layout, ScrollArea, Stroke,
+    TextEdit, UiBuilder, Vec2, Window, include_image, widgets::Image,
 };
 use strum::IntoEnumIterator;
 
@@ -227,9 +228,8 @@ fn construct_base_window<'open>(
 ///  Notes Window
 ////////////////////////////////////////////////////////////////////////////
 pub fn draw_notes_panel(ctx: &egui::Context, state: &mut OverlayApp) {
-
     // immediately focus text edit up notes window open
-    let notes_open_key ="Notes_Window_Open_Last_Frame";
+    let notes_open_key = "Notes_Window_Open_Last_Frame";
     // read last open state
     let was_open = ctx.memory(|mem| {
         let id = Id::new(notes_open_key);
@@ -240,25 +240,20 @@ pub fn draw_notes_panel(ctx: &egui::Context, state: &mut OverlayApp) {
     let notes_open = *state.features.get_feature_active_mut_ref(Feature::Notes);
     ctx.memory_mut(|mem| {
         let id = Id::new(notes_open_key);
-        mem.data.insert_temp(
-            id,
-            notes_open,
-        );
+        mem.data.insert_temp(id, notes_open);
     });
 
     construct_base_window("Notes", state.app_focus.is_focused())
         .open(state.features.get_feature_active_mut_ref(Feature::Notes))
         .show(ctx, |ui| {
-            // ui.style_mut().spacing.item_spacing = Vec2::ZERO; // FRAME PADDING is the culprit
 
             egui::ScrollArea::both()
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
-                    ui.style_mut().visuals.widgets.active.bg_stroke=Stroke{ width: 0.3, color: Color32::TRANSPARENT };
                     let text_respone = ui.add(
                         TextEdit::multiline(&mut state.notes.text)
                             .frame(false)
-                            .hint_text("Type personal notes and TODOs in here to keep track of them.\n....")
+                            .hint_text("...\nType personal notes and TODOs in here to keep track of them.\n...")
                             .clip_text(false)//does nothing
                             .desired_width(ui.available_width())
                             .font(egui::TextStyle::Body)
@@ -270,32 +265,29 @@ pub fn draw_notes_panel(ctx: &egui::Context, state: &mut OverlayApp) {
                     if !was_open && notes_open {
                         text_respone.request_focus(); // first frame open
                     }
-                    
-                        let content_rect = ui.max_rect();
-
-                    let overlay_ui_builder = UiBuilder::new().max_rect(content_rect)
-                        .layout(Layout::from_main_dir_and_cross_align(
-                            egui::Direction::RightToLeft, // right-aligned
-                            egui::Align::Min,             // top-aligned
-                        ));
-
-                    // TODO: help icon scrolls away when text becomes scrollable, maybe it's a feature though
-                    ui.allocate_new_ui(overlay_ui_builder, |ui|{
-                        ui.style_mut().interaction.tooltip_delay=0.0; // somehow doesn't work?
-                        ui.style_mut().interaction.show_tooltips_only_when_still=false;
-
-                        Frame::new().corner_radius(20.).fill(Color32::from_black_alpha(180)).inner_margin(2.).outer_margin(Vec2::new(15.,0.))
-                            .stroke(Stroke{width:0.5, color: Color32::from_white_alpha(180)})
-                            .show(ui, |ui| {
-                                ui.add_sized(Vec2::splat(20.),Label::new("?"));                        
-                        }).response.on_hover_text("Simple notes styling:\n# Heading 1\n## Heading 2 ...\n_underlined_\n*italic*");
-                    });
-
                 });
+
+            // overlay helper icon on top
+            let content_rect = ui.max_rect();
+
+            let overlay_ui_builder = UiBuilder::new().max_rect(content_rect)
+                .layout(Layout::from_main_dir_and_cross_align(
+                    egui::Direction::RightToLeft, // right-aligned
+                    egui::Align::Min,             // top-aligned
+                ));
+            ui.allocate_new_ui(overlay_ui_builder, |ui|{
+                ui.style_mut().interaction.tooltip_delay=0.0; // somehow doesn't work?
+                ui.style_mut().interaction.show_tooltips_only_when_still=false;
+
+                Frame::new().corner_radius(20.).fill(Color32::from_black_alpha(150)).inner_margin(2.).outer_margin(Vec2::new(15.,0.))
+                    .stroke(Stroke{width:0.5, color: Color32::from_white_alpha(150)})
+                    .show(ui, |ui| {
+                        ui.add_sized(Vec2::splat(20.),Label::new("?"));                        
+                    }).response.on_hover_text("Simple notes styling:\n# Heading 1\n## Heading 2 ...\n_underlined_\n*italic*");
+            });
+
         });
-
 }
-
 
 ////////////////////////////////////////////////////////////////////////////
 ///  Resources Window
@@ -306,7 +298,6 @@ pub fn draw_ressources_panel(ctx: &egui::Context, state: &mut OverlayApp) {
         .features
         .get_feature_active_mut_ref(Feature::Ressources);
 
-        
     construct_base_window("Ressources", state.app_focus.is_focused())
         .open(window_open)
         .show(ctx, |ui| {

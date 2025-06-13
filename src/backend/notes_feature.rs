@@ -2,21 +2,19 @@ use egui::{
     Color32, FontId, Stroke, TextFormat, TextStyle, Ui,
     text::{LayoutJob, LayoutSection},
 };
-use egui_commonmark::CommonMarkCache;
 use regex::Regex;
+
+use crate::style;
 
 pub struct NotesSubsystem {
     pub text: String,
-    pub cache: CommonMarkCache,
 }
 
 impl NotesSubsystem {
     pub fn new() -> Self {
         Self {
             text: String::new(),
-            cache: CommonMarkCache::default(),
         }
-        // TODO: load from disk
     }
 }
 
@@ -47,23 +45,24 @@ pub fn get_notes_textedit_layouter(
         };
         let heading = TextFormat { ..normal.clone() };
 
-        // Emphasis (italic):
         let italic = TextFormat {
             italics: true,
+            color: style::COLOR_NOTES_ITALIC,
             ..normal.clone()
         };
-        // Strong (bold-ish):
+
         let underlined = TextFormat {
+            color: style::COLOR_NOTES_UNDERLINED,
             underline: Stroke {
                 width: 1.,
-                color: ctx.style().visuals.widgets.noninteractive.fg_stroke.color,
+                color: style::COLOR_NOTES_UNDERLINED,
             }, // underline instead as bold doesn't seem possible
             ..normal.clone()
         };
-        // Inline code:
+
         let code = TextFormat {
             font_id: FontId::monospace(normal_font.size - 1.),
-            background: egui::Color32::from_gray(30),
+            background: egui::Color32::from_black_alpha(200),
             color: egui::Color32::LIGHT_YELLOW,
             ..normal.clone()
         };
@@ -76,7 +75,7 @@ pub fn get_notes_textedit_layouter(
 
         let mut ranges = Vec::new();
 
-        // headings need sizes per level, so do them manually:
+        // headings need size and color per level => manually build format
         for cap in head_re.captures_iter(text) {
             let lvl = cap[1].len(); // number of '#' chars
             let size = match lvl {
@@ -87,8 +86,18 @@ pub fn get_notes_textedit_layouter(
                 5 => 15.0,
                 _ => 14.0,
             };
+            let color = match lvl {
+                1 => style::COLOR_HEADING_1,
+                2 => style::COLOR_HEADING_2,
+                3 => style::COLOR_HEADING_3,
+                4 => style::COLOR_HEADING_4,
+                5 => style::COLOR_HEADING_5,
+                6 => style::COLOR_HEADING_6,
+                _ => style::COLOR_TEXT,
+            };
             let mut fmt = heading.clone();
             fmt.font_id.size = size;
+            fmt.color = color;
 
             let m = cap.get(0).unwrap();
             ranges.push((m.start(), m.end(), fmt, DelimiterType::LeadingMany(lvl)));
@@ -185,8 +194,6 @@ fn push_style(
         },
         ..format.clone()
     };
-
-    println!("start {},  last {}", start, last);
 
     match delimiter_type {
         DelimiterType::Nothing => sections.push(LayoutSection {
