@@ -4,7 +4,7 @@ mod gui;
 mod style;
 mod utils;
 
-use app::OverlayApp;
+use app::{APP_ID, OverlayApp};
 use eframe::{CreationContext, NativeOptions, run_native};
 
 fn main() {
@@ -25,7 +25,7 @@ fn main() {
     };
 
     run_native(
-        "PokeMMO-Companion", // window/app title
+        APP_ID, // window/app title
         native_opts,
         Box::new(|cc: &CreationContext| {
             // This is called once at startup. Wrap your App in Ok(...)

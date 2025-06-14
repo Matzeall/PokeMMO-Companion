@@ -24,6 +24,8 @@ use crate::{
 };
 use egui::Context;
 
+pub const APP_ID: &str = "pokemmo-companion";
+
 // INFO: this is part of the egui storage solution which requires an eframe bug fix
 // const SAVE_STATE_STORAGE_KEY: &str = "save_state";
 // const SAVE_STATE_STORAGE_KEY_BROKEN: &str = "save_state_broken";
@@ -110,8 +112,13 @@ impl OverlayApp {
         // It prohibits me from using the eframe storage framework
         // Therefore rolling my own for now.
         let storage = &app.storage;
-        let save_state = storage.load_state_from_storage();
-        app.push_save_state_into_app(save_state);
+        match storage.load_state_from_storage() {
+            Ok(save_state) => app.push_save_state_into_app(save_state),
+            Err(e) => {
+                // TODO: notify user
+                println!("Could not load save_state from storage, because:\n{e}")
+            }
+        }
 
         app
     }
@@ -176,7 +183,9 @@ impl App for OverlayApp {
         //     }
         // }
 
-        self.storage.save_state_to_storage(self);
+        if let Err(e) = self.storage.save_state_to_storage(self) {
+            println!("Could not save save_state to storage, because:\n{e}");
+        }
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {}

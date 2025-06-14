@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, path::PathBuf};
+use std::{cell::RefCell, collections::HashMap, io, path::PathBuf};
 
 use crate::{
     style,
@@ -14,8 +14,6 @@ pub struct RessourcesSubsystem {
     current_resource: Option<String>,
 
     visited_resources: Vec<String>,
-
-    resource_folder_path: PathBuf,
 }
 
 impl RessourcesSubsystem {
@@ -23,7 +21,6 @@ impl RessourcesSubsystem {
         let mut ressources_subsystem = Self {
             available_ressources: HashMap::new(),
             current_resource: None,
-            resource_folder_path: PathBuf::default(),
             visited_resources: Vec::new(),
         };
 
@@ -53,40 +50,46 @@ impl RessourcesSubsystem {
         //     vec!["PokeMMO Info", "EV Hordes", "Markdown", "AppLink"],
         // );
 
-        self.resource_folder_path = find_asset_folder();
-        self.resource_folder_path = self.resource_folder_path.join("resources");
-        if !self.resource_folder_path.is_dir() {
-            panic!();
-        }
+        let resources_dir = self.resource_folder_path();
 
-        println!(
-            "Resource folder path: {0}",
-            self.resource_folder_path.display()
-        );
-
-        let md_file_list = utils::read_in_all_markdown_files(self.resource_folder_path.clone());
-        if md_file_list.is_err() {
-            self.add_markdown_resource(
-                "ROOT",
-                format!(
-                    "Error during .md file read: \n{0}",
-                    md_file_list.unwrap_err()
-                ),
-            );
-            return; // dont continue to parsing
+        let md_file_list = match resources_dir {
+            Ok(dir) => utils::read_in_all_markdown_files(dir),
+            Err(e) => Err(e),
         };
 
-        let md_file_list = md_file_list.unwrap(); // manually checked before
+        match md_file_list {
+            Ok(list) => {
+                // DEBUG Output
+                println!("Files found:");
+                list.iter().for_each(|(file, _cont)| println!("  - {file}"));
 
-        // DEBUG Output
-        {
-            println!("Files found:");
-            md_file_list
-                .iter()
-                .for_each(|(file, _cont)| println!("  - {file}"));
+                self.parse_into_resources(list);
+            }
+            Err(err) => {
+                // add one "error" resource, which explains what went wrong to the user
+                self.add_markdown_resource(
+                    "ROOT",
+                    format!("Error during .md file read: \n{0}", err),
+                );
+            }
+        };
+    }
+
+    fn resource_folder_path(&mut self) -> Result<PathBuf, io::Error> {
+        match find_asset_folder() {
+            Ok(assets_folder) => {
+                let resource_candidate = assets_folder.join("resources");
+                if !resource_candidate.is_dir() {
+                    Err(io::Error::new(
+                        io::ErrorKind::NotADirectory,
+                        format!("no folder called \"resources\" in {:?}", assets_folder),
+                    ))
+                } else {
+                    Ok(resource_candidate)
+                }
+            }
+            Err(e) => Err(e),
         }
-
-        self.parse_into_resources(md_file_list);
     }
 
     fn parse_into_resources(&mut self, md_file_list: Vec<(String, String)>) {

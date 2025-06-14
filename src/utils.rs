@@ -1,43 +1,37 @@
 // contains small and common helper functions
 
-use std::{fs, io::Result, path::PathBuf};
+use std::{
+    fs,
+    io::{self, ErrorKind, Result},
+    path::PathBuf,
+};
 
 use crate::style;
 
-// TODO: rethink if proper error handling makes sense here, or if that always needs to panic
-pub fn get_base_folder() -> PathBuf {
-    if let Ok(mut exe_folder) = std::env::current_exe() {
-        exe_folder.pop(); // strip off the executable name
-        exe_folder
-    } else {
-        if let Ok(cwd) = std::env::current_dir() {
-            return cwd;
-        }
-        panic!("Couldn't find base folder to work in");
-    }
-}
-
-pub fn find_asset_folder() -> PathBuf {
+pub fn find_asset_folder() -> io::Result<PathBuf> {
     const ASSETS_DIR_NAME: &str = "assets";
 
-    let mut base_folder = get_base_folder();
+    let mut base_folder = std::env::current_exe();
 
     // prefer project root when in the dev environment
     if let Ok(current_dir) = std::env::current_dir() {
         if current_dir.join(ASSETS_DIR_NAME).is_dir() {
-            base_folder = current_dir;
+            base_folder = Ok(current_dir);
         }
     }
 
-    let candidate = base_folder.join(ASSETS_DIR_NAME);
-    if candidate.is_dir() {
-        return candidate;
+    if let Ok(root_folder) = &base_folder {
+        let candidate = root_folder.join(ASSETS_DIR_NAME);
+        if candidate.is_dir() {
+            return Ok(candidate);
+        }
+        return Err(io::Error::new(
+            ErrorKind::NotADirectory,
+            format!("no {ASSETS_DIR_NAME} directory in {:?}", base_folder),
+        ));
     }
 
-    panic!(
-        "Could not locate an `assets` folder. Looked at:\n  {:#?}",
-        candidate
-    );
+    base_folder // bubble up error
 }
 
 pub fn read_in_all_markdown_files(path: PathBuf) -> Result<Vec<(String, String)>> {

@@ -8,8 +8,8 @@ use crate::{
     style, utils,
 };
 use egui::{
-    Align2, Color32, Frame, Id, ImageButton, ImageSource, Label, Layout, ScrollArea, Stroke,
-    TextEdit, UiBuilder, Vec2, Window, include_image, widgets::Image,
+    Align2, Color32, Frame, Id, ImageButton, ImageSource, Label, Layout, Margin, ScrollArea,
+    Stroke, TextEdit, UiBuilder, Vec2, Window, include_image, widgets::Image,
 };
 use strum::IntoEnumIterator;
 
@@ -335,54 +335,61 @@ fn draw_resource_nav_bar(
         ui.style_mut().visuals.widgets.hovered.bg_stroke = Stroke::NONE;
         ui.style_mut().visuals.widgets.active.bg_stroke = Stroke::NONE;
 
-        // should prevent runtime panics or do nothing
-        ui.set_min_size(Vec2::new(20., 10.));
+        // slight backdrop to stand out from the bg
+        Frame::new()
+            .corner_radius(20.)
+            .fill(Color32::from_black_alpha(150))
+            .inner_margin(Margin::symmetric(10, 3))
+            .outer_margin(Vec2::new(12., 0.))
+            .stroke(Stroke::NONE)
+            .show(ui, |ui| {
+                // should prevent runtime panics or do nothing
+                ui.set_min_size(Vec2::new(20., 10.));
 
-        ui.horizontal(|ui| {
-            ui.add_space(15.);
+                ui.horizontal(|ui| {
+                    let button_size = Vec2::splat(25.);
+                    let home_icon_source = gui_sub.get_image_source("generic_home").clone();
+                    let back_icon_source = gui_sub.get_image_source("generic_back").clone();
 
-            let button_size = Vec2::splat(25.);
-            let home_icon_source = gui_sub.get_image_source("generic_home").clone();
-            let back_icon_source = gui_sub.get_image_source("generic_back").clone();
+                    // HOME BUTTON
+                    let home_image = Image::new(home_icon_source)
+                        .alt_text("Home")
+                        .tint(style::COLOR_APPLINK_REST);
+                    let home_btn = ImageButton::new(home_image).corner_radius(button_size.x / 2.);
+                    let home_response = ui.add_sized(button_size, home_btn).on_hover_text("Home");
 
-            // HOME BUTTON
-            let home_image = Image::new(home_icon_source)
-                .alt_text("Home")
-                .tint(style::COLOR_APPLINK_REST);
-            let home_btn = ImageButton::new(home_image).corner_radius(button_size.x / 2.);
-            let home_response = ui.add_sized(button_size, home_btn).on_hover_text("Home");
+                    if home_response.hovered() {
+                        // draw highlight
+                        utils::draw_highlight_underline(ui, &home_response, 2.);
+                    }
 
-            if home_response.hovered() {
-                // draw highlight
-                utils::draw_highlight_underline(ui, &home_response, 2.);
-            }
+                    if home_response.clicked() {
+                        resources_sub.set_current_resource("ROOT", true);
+                    }
 
-            if home_response.clicked() {
-                resources_sub.set_current_resource("ROOT", true);
-            }
+                    // BACK BUTTON
+                    let back_image = Image::new(back_icon_source)
+                        .alt_text("back")
+                        .tint(style::COLOR_APPLINK_REST);
+                    let back_btn = ImageButton::new(back_image).corner_radius(button_size.x / 2.);
+                    let back_response = ui.add_sized(button_size, back_btn);
 
-            // BACK BUTTON
-            let back_image = Image::new(back_icon_source)
-                .alt_text("back")
-                .tint(style::COLOR_APPLINK_REST);
-            let back_btn = ImageButton::new(back_image).corner_radius(button_size.x / 2.);
-            let back_response = ui.add_sized(button_size, back_btn);
+                    if let Some(last_res) = resources_sub.inspect_last_resource() {
+                        // TODO: later check if I really need to clone here
+                        back_response.clone().on_hover_text(last_res);
+                    }
 
-            if let Some(last_res) = resources_sub.inspect_last_resource() {
-                // TODO: later check if I really need to clone here
-                back_response.clone().on_hover_text(last_res);
-            }
+                    if back_response.hovered() {
+                        // draw highlight
+                        utils::draw_highlight_underline(ui, &back_response, 0.);
+                    }
 
-            if back_response.hovered() {
-                // draw highlight
-                utils::draw_highlight_underline(ui, &back_response, 2.);
-            }
-
-            if back_response.clicked() {
-                // back action
-                resources_sub.go_back_visited_resources();
-            }
-        });
+                    if back_response.clicked() {
+                        // back action
+                        resources_sub.go_back_visited_resources();
+                    }
+                });
+            });
     });
 }
 

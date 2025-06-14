@@ -1,10 +1,10 @@
 // has functions for reading/writing JSON (or syncing with cloud?)
 
-use std::{fs, path::PathBuf};
+use std::{fs, io, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{app::OverlayApp, utils};
+use crate::app::OverlayApp;
 
 /////////////////////////////////////////////////////////////////////
 // Save State
@@ -46,9 +46,9 @@ pub fn push_save_state_into_app(save_state: SaveState, app: &mut OverlayApp) {
 /////////////////////////////////////////////////////////////////////
 
 pub trait PersistentStorage {
-    fn save_state_to_storage(&self, _app: &OverlayApp);
-    fn load_state_from_storage(&self) -> SaveState;
-    fn _reset_save_state(&self);
+    fn save_state_to_storage(&self, _app: &OverlayApp) -> io::Result<()>;
+    fn load_state_from_storage(&self) -> io::Result<SaveState>;
+    fn _reset_save_state(&self) -> io::Result<()>;
 }
 
 // File Storage ///////////////////////////////////
@@ -63,56 +63,56 @@ impl FileStorage {
     // created. TODO: make sure there cannot be any weird bugs by permissions etc.
     // TODO: In regards to the Todo above and also because it's generally better, change
     // save location to the OS's data dir (.local/share, AppData/Roaming)
-    pub fn save_file_path() -> PathBuf {
-        let base_path = utils::get_base_folder();
-        let mut save_file = base_path.join("save_state");
-        save_file = save_file.with_extension("toml");
-        if !save_file.exists() {
-            if let Ok(()) = fs::write(&save_file, "") {
-                return save_file;
+    pub fn save_file_path() -> io::Result<PathBuf> {
+        match eframe::storage_dir(crate::app::APP_ID) {
+            Some(storage_dir) => {
+                let save_file = storage_dir.join("save_state").with_extension("toml");
+                match save_file.exists() {
+                    true => Ok(save_file),
+                    false => match fs::write(&save_file, "") {
+                        Ok(_) => Ok(save_file),
+                        Err(e) => Err(e),
+                    },
+                }
             }
+            None => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "there is no data/storage directory on your device (or eframe::storage_dir() doesn't support one on your platform)",
+            )),
         }
-        if !save_file.exists() {
-            panic!("Save file could not be created!! Panicking now...")
-        }
-        save_file
     }
 }
 
 impl PersistentStorage for FileStorage {
-    fn save_state_to_storage(&self, app: &OverlayApp) {
+    fn save_state_to_storage(&self, app: &OverlayApp) -> io::Result<()> {
         println!("Saving state to disk....");
-        let path = FileStorage::save_file_path();
+        let path = FileStorage::save_file_path()?;
         let save_state: SaveState = app.into(); // pulls everything save-related from app
         match toml::to_string_pretty(&save_state) {
-            Ok(serialized) => {
-                fs::write(path.with_extension("toml"), serialized).ok();
-            }
-            Err(e) => {
-                println!("Error serializing SaveState : {e}");
-            }
+            Ok(serialized) => fs::write(path.with_extension("toml"), serialized),
+            // wrap parsing error in io error
+            Err(e) => Err(io::Error::new(io::ErrorKind::Other, e)),
         }
     }
 
-    fn load_state_from_storage(&self) -> SaveState {
+    fn load_state_from_storage(&self) -> io::Result<SaveState> {
         println!("Loading state from disk....");
-        let path = FileStorage::save_file_path();
-        if let Ok(contents) = fs::read_to_string(&path) {
-            if let Ok(save_state) = toml::from_str::<SaveState>(&contents) {
-                return save_state;
-            } else {
-                panic!("Could not deserialize SaveState");
-            }
+        let path = FileStorage::save_file_path()?;
+        match fs::read_to_string(&path) {
+            Ok(contents) => match toml::from_str::<SaveState>(&contents) {
+                Ok(save_state) => Ok(save_state),
+                Err(e) => Err(io::Error::new(io::ErrorKind::Other, e)),
+            },
+            Err(e) => Err(e),
         }
-        panic!(
-            "Could not read save_file from {:?}! Save file should exist at this point.",
-            path
-        );
     }
 
-    fn _reset_save_state(&self) {
+    fn _reset_save_state(&self) -> io::Result<()> {
         println!("Resetting save state....");
-        let _ = fs::remove_file(FileStorage::save_file_path());
+        match FileStorage::save_file_path() {
+            Ok(path) => fs::remove_file(path),
+            Err(e) => Err(e),
+        }
     }
 }
 
