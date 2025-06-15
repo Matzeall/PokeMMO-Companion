@@ -19,14 +19,6 @@ regex = "1.11.1"
 serde = "1.0.219" # data serializer for persisting state 
 toml = "0.8.23"   # save-file format (easily human readable)
 
-# eframe dependencies, i think
-winapi = { version = "0.3", features = ["winuser"] }
-windows-sys = { version = "0.60", features = [
-  "Win32_Foundation",
-  "Win32_UI_Shell",
-  "Win32_System_Com",
-] }
-
 # ——— Raw window handles (also used by eframe internally) ————————————————————————
 raw-window-handle = "0.6" # gives me HWND/WlSurface/Window under the hood, when I need functionality that exceeds eframe
 
@@ -44,9 +36,10 @@ strum_macros = "0.27" # for #[derive(EnumIter)]
 [target.'cfg(windows)'.dependencies]
 # ——— Windows APIs via windows‐rs ————————————————————————————————————————
 windows = { version = "0.61", features = [
-  "Win32_Foundation",             # HWND, BOOL, etc.
-  "Win32_UI_WindowsAndMessaging", # CreateWindowExW, RegisterHotKey, GetMessageW…
-  "Win32_System_LibraryLoader",   # GetModuleHandle, if needed
+  "Win32_Foundation",                # HWND, BOOL, etc.
+  "Win32_UI_WindowsAndMessaging",    # CreateWindowExW, GetMessageW…
+  "Win32_System_LibraryLoader",      # GetModuleHandle, if needed
+  "Win32_UI_Input_KeyboardAndMouse", # RegisterHotKey
 ] }
 
 

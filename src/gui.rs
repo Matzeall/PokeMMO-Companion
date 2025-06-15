@@ -5,6 +5,7 @@ use eframe::CreationContext;
 use crate::{
     app::OverlayApp,
     backend::{self, feature_state::Feature, ressources_feature::RessourcesSubsystem},
+    frontend::viewport::ViewportManager,
     style, utils,
 };
 use egui::{
@@ -89,7 +90,9 @@ pub fn draw_gui(ctx: &egui::Context, frame: &mut eframe::Frame, state: &mut Over
     draw_perf_panel(ctx, frame);
 
     // draw UI based on AppState
-    draw_control_panel(ctx, state);
+    if state.viewport_manager.current_focus_state().is_focused() {
+        draw_control_panel(ctx, state);
+    }
 
     draw_notes_panel(ctx, state);
 
@@ -112,11 +115,13 @@ pub fn draw_control_panel(ctx: &egui::Context, state: &mut OverlayApp) {
     ]);
 
     Window::new("ControlPanel")
-        .frame(if state.app_focus.is_focused() {
-            style::CUSTOM_FRAME_FOCUSSED
-        } else {
-            style::CUSTOM_FRAME
-        })
+        .frame(
+            if state.viewport_manager.current_focus_state().is_focused() {
+                style::CUSTOM_FRAME_FOCUSSED
+            } else {
+                style::CUSTOM_FRAME
+            },
+        )
         .anchor(Align2::CENTER_BOTTOM, Vec2::new(0., 10.))
         .title_bar(false)
         .resizable(false)
@@ -206,10 +211,12 @@ pub fn draw_perf_panel(ctx: &egui::Context, frame: &mut eframe::Frame) {
 
 fn construct_base_window<'open>(
     window_name: impl Into<egui::WidgetText>,
-    application_focused: bool,
+    // application_focused: bool,
+    viewport_manager: &dyn ViewportManager,
 ) -> Window<'open> {
     Window::new(window_name)
-        .frame(if application_focused {
+        // .frame(if application_focused {
+        .frame(if viewport_manager.current_focus_state().is_focused() {
             style::CUSTOM_FRAME_FOCUSSED
         } else {
             style::CUSTOM_FRAME
@@ -243,7 +250,7 @@ pub fn draw_notes_panel(ctx: &egui::Context, state: &mut OverlayApp) {
         mem.data.insert_temp(id, notes_open);
     });
 
-    construct_base_window("Notes", state.app_focus.is_focused())
+    construct_base_window("Notes", state.viewport_manager.as_ref())
         .open(state.features.get_feature_active_mut_ref(Feature::Notes))
         .show(ctx, |ui| {
 
@@ -298,7 +305,7 @@ pub fn draw_ressources_panel(ctx: &egui::Context, state: &mut OverlayApp) {
         .features
         .get_feature_active_mut_ref(Feature::Ressources);
 
-    construct_base_window("Ressources", state.app_focus.is_focused())
+    construct_base_window("Ressources", state.viewport_manager.as_ref())
         .open(window_open)
         .show(ctx, |ui| {
             egui::ScrollArea::vertical()
@@ -402,7 +409,7 @@ pub fn draw_type_matrix_panel(ctx: &egui::Context, state: &mut OverlayApp) {
         .features
         .get_feature_active_mut_ref(Feature::TypeMatrix);
 
-    construct_base_window("Type Matrix", state.app_focus.is_focused())
+    construct_base_window("Type Matrix", state.viewport_manager.as_ref())
         .open(open_handle)
         .show(ctx, |ui| {
             ScrollArea::both()
@@ -424,7 +431,7 @@ pub fn draw_breeding_calculator_panel(ctx: &egui::Context, state: &mut OverlayAp
     let open_handle = state
         .features
         .get_feature_active_mut_ref(Feature::BreedingCalculator);
-    construct_base_window("Breeding Calculator", state.app_focus.is_focused())
+    construct_base_window("Breeding Calculator", state.viewport_manager.as_ref())
         .open(open_handle)
         .show(ctx, |_ui| {
             ScrollArea::both()

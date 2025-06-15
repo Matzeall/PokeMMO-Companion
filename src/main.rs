@@ -1,5 +1,6 @@
 mod app;
 mod backend;
+mod frontend;
 mod gui;
 mod style;
 mod utils;

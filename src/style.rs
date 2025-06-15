@@ -32,15 +32,15 @@ pub const CUSTOM_FRAME: egui::containers::Frame = egui::containers::Frame {
     fill: COLOR_PANEL_BACKGROUND,
     // optional border stroke:
     stroke: Stroke {
-        width: 0.1,
+        width: 0.2,
         color: Color32::TRANSPARENT,
     },
     shadow: Shadow::NONE,
 };
 pub const CUSTOM_FRAME_FOCUSSED: egui::containers::Frame = egui::containers::Frame {
     stroke: Stroke {
-        width: 0.1,
         color: Color32::WHITE,
+        ..CUSTOM_FRAME.stroke
     },
     ..CUSTOM_FRAME
 };
