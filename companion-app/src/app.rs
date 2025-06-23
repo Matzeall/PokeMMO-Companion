@@ -80,9 +80,11 @@ impl OverlayApp {
         {
             use raw_window_handle::HasWindowHandle;
             if let Ok(window_handle) = cc.window_handle() {
-                self.viewport_manager = Box::new(
-                    viewport::windows::NativeViewportManagerWin32::new(window_handle),
-                );
+                self.viewport_manager =
+                    Box::new(viewport::windows::NativeViewportManagerWin32::new(
+                        window_handle,
+                        cc.winit_window.clone().expect("winit window not valid"),
+                    ));
             }
         }
 

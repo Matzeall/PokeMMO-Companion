@@ -1065,7 +1065,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 [[package]]
 name = "ecolor"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 dependencies = [
  "bytemuck",
  "emath",
@@ -1075,7 +1075,7 @@ dependencies = [
 [[package]]
 name = "eframe"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1113,7 +1113,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1130,7 +1130,7 @@ dependencies = [
 [[package]]
 name = "egui-wgpu"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1149,7 +1149,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 dependencies = [
  "accesskit_winit",
  "ahash",
@@ -1209,7 +1209,7 @@ dependencies = [
 [[package]]
 name = "egui_glow"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1246,7 +1246,7 @@ checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 [[package]]
 name = "emath"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1314,7 +1314,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -1332,7 +1332,7 @@ dependencies = [
 [[package]]
 name = "epaint_default_fonts"
 version = "0.31.1"
-source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#1669e52a7ccfc3489c1b0999b9ed48894a0b3887"
+source = "git+https://github.com/Matzeall/egui_fixes.git?branch=patch-eframe-0.31.1#926fc8a3ae9cc139f4c7dcb70688b3acb1993952"
 
 [[package]]
 name = "equator"

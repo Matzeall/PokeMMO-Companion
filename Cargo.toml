@@ -4,7 +4,11 @@ resolver = "3"                               # dependency / crate resolver, for 
 
 [patch.crates-io]
 eframe = { git = "https://github.com/Matzeall/egui_fixes.git", branch = "patch-eframe-0.31.1", package = "eframe" }
-egui = { git = "https://github.com/Matzeall/egui_fixes.git", branch = "patch-eframe-0.31.1", package = "egui" }
 # egui is necessary to also patch although I am only interested in eframe, because otherwise depending crates have 
 # different definitions of the same types. 
 # Maybe I even need to include more crates from the egui workspace in the future.
+egui = { git = "https://github.com/Matzeall/egui_fixes.git", branch = "patch-eframe-0.31.1", package = "egui" }
+
+# local paths for development
+# eframe = { path = "../egui_fixes/crates/eframe" }
+# egui = { path = "../egui_fixes/crates/egui" }

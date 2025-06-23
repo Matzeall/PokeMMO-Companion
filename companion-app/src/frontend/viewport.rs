@@ -70,7 +70,7 @@ pub mod windows {
     use super::*;
     // windows only imports
 
-    use std::sync::mpsc::Sender;
+    use std::sync::{mpsc::Sender, Arc};
     use ::windows::Win32::{
         Foundation::HWND,
         UI::{
@@ -82,21 +82,24 @@ pub mod windows {
             },
         },
     };
+    use winit::window::Window;
 
     /// manages the focus state of the main window by calling Win32 native functionality like
     /// RegisterHotKey and the Windows Event Loop
     pub struct NativeViewportManagerWin32 {
         app_focus: FocusState,
         hwnd_int: isize,
+        winit_window: Arc<Window>,
         focus_state_rx: Option<Receiver<FocusState>>,
     }
 
     impl NativeViewportManagerWin32 {
-        pub fn new(window_handle: WindowHandle<'_>) -> Self {
+        pub fn new(window_handle: WindowHandle<'_>, winit_window: Arc<Window>) -> Self {
             let mut manager = Self {
                 app_focus: FocusState::Focused,
                 hwnd_int: 0,
                 focus_state_rx: None,
+                winit_window,
             };
 
             match window_handle.as_raw() {
@@ -115,6 +118,7 @@ pub mod windows {
 
         fn spawn_hotkey_listener_thread(&self) -> Receiver<FocusState> {
             // let egui_ctx = cc.egui_ctx.clone();
+            // let winit_window = self.winit_window.clone();
             let hwnd_int = self.hwnd_int;
             let (focus_state_tx, focus_state_rx): (Sender<FocusState>, Receiver<FocusState>) =
                 mpsc::channel();
@@ -142,7 +146,16 @@ pub mod windows {
 
                                 show_window_maximized(hwnd);
 
+                                // winit_window.set_visible(true);
+                                // winit_window.set_maximized(true);
+                                // winit_window.set_window_level(winit::window::WindowLevel::AlwaysOnTop);
+                                // winit_window.set_transparent(false);
+                                // winit_window.set_cursor_hittest(true);
+                                // winit_window.focus_window();
+                                // winit_window.request_redraw();
+
                                 let _ = focus_state_tx.send(FocusState::Focused); // notify main thread 
+
                                 // egui_ctx
                                 //     .send_viewport_cmd(egui::ViewportCommand::Maximized(true));
                                 // egui_ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
@@ -162,6 +175,9 @@ pub mod windows {
 
                                 hide_window(hwnd);
 
+                                // winit_window.set_visible(false);
+                                // winit_window.request_redraw();
+
                                 let _ = focus_state_tx.send(FocusState::Hidden); // notify main thread 
 
                                 // egui_ctx
@@ -172,6 +188,14 @@ pub mod windows {
                                 println!("Make Overlay non-interactable");
 
                                 enable_overlay_click_through(hwnd);
+
+                                // winit_window.set_visible(true);
+                                // winit_window.set_maximized(true);
+                                // winit_window.set_window_level(winit::window::WindowLevel::AlwaysOnTop);
+                                // winit_window.set_transparent(true);
+                                // winit_window.set_cursor_hittest(false);
+                                // winit_window.focus_window();
+                                // winit_window.request_redraw();
 
                                 let _ = focus_state_tx.send(FocusState::Unfocused); // notify main thread 
 
