@@ -1,5 +1,5 @@
 use std::{
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Receiver},
     thread,
 };
 
@@ -69,6 +69,8 @@ impl ViewportManager for DefaultViewportManager {
 pub mod windows {
     use super::*;
     // windows only imports
+
+    use std::sync::mpsc::Sender;
     use ::windows::Win32::{
         Foundation::HWND,
         UI::{
@@ -245,6 +247,7 @@ pub mod windows {
 #[cfg(unix)]
 pub mod unix {
     use super::*;
+    // unix only imports
     use std::error::Error;
     use std::io::{self, BufRead, BufReader};
     use std::os::unix::net::UnixStream;
