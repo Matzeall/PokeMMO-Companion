@@ -1,7 +1,13 @@
 #[cfg(unix)]
-include!("main_unix.rs");
+mod main_unix;
+#[cfg(unix)]
+use crate::main_unix::platform;
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+mod main_win;
+#[cfg(windows)]
+use crate::main_win::platform;
+
 fn main() {
-    eprintln!("hotkey-daemon only runs on unix-systems");
+    platform::main();
 }
