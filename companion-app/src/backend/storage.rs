@@ -91,7 +91,7 @@ impl PersistentStorage for FileStorage {
         match toml::to_string_pretty(&save_state) {
             Ok(serialized) => fs::write(path.with_extension("toml"), serialized),
             // wrap parsing error in io error
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, e)),
+            Err(e) => Err(io::Error::other(e)),
         }
     }
 
@@ -101,7 +101,7 @@ impl PersistentStorage for FileStorage {
         match fs::read_to_string(&path) {
             Ok(contents) => match toml::from_str::<SaveState>(&contents) {
                 Ok(save_state) => Ok(save_state),
-                Err(e) => Err(io::Error::new(io::ErrorKind::Other, e)),
+                Err(e) => Err(io::Error::other(e)),
             },
             Err(e) => Err(e),
         }

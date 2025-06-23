@@ -8,7 +8,8 @@
 //             egui = { git = "https://github.com/your‑username/egui.git", branch = "my‑patch‑branch" }
 //             egui = { path = "../my‑egui‑fork" } # for development with relative path
 //             # After changing Cargo.toml, run : cargo update -p egui # rebuild from fork
-//     - I could also try to spawn a thread (with a ref to hwnd) which gets RegisterHotKey commands that then shows the window again (the same for click-through)
+// - move into frontend folder (style, gui)
+//      + refactor structs out into multiple files and use cfg attributes in mod file
 // - look into nvim debugging
 //      - toggle breakpoint in current line
 //      - view contents of variable in scope
@@ -18,10 +19,9 @@
 //
 //
 //
-//
-//
+
 use eframe::{App, CreationContext, Frame};
-use raw_window_handle::HasWindowHandle;
+use raw_window_handle::{HandleError, HasDisplayHandle, HasWindowHandle};
 
 use crate::{
     backend::{
@@ -31,7 +31,7 @@ use crate::{
         ressources_feature::RessourcesSubsystem,
         storage::{FileStorage, PersistentStorage, SaveState},
     },
-    frontend::viewport::{DefaultViewportManager, NativeViewportManagerWin32, ViewportManager},
+    frontend::viewport::{self, DefaultViewportManager, ViewportManager},
     gui::{self, GuiSubsystem},
 };
 use egui::Context;
@@ -55,9 +55,9 @@ pub struct OverlayApp {
 
     pub viewport_manager: Box<dyn ViewportManager>,
 }
-
 impl OverlayApp {
     pub fn new(cc: &CreationContext<'_>) -> Self {
+        println!("Creating App ...");
         let mut app = Self {
             features: FeatureSubsystem::new(),
             gui: GuiSubsystem::new(cc),
@@ -67,11 +67,71 @@ impl OverlayApp {
             viewport_manager: Box::new(DefaultViewportManager::default()),
         };
 
+        app.setup_viewport_manager(cc);
+
+        app.setup_persistent_storage();
+
+        app
+    }
+
+    fn setup_viewport_manager(&mut self, cc: &CreationContext<'_>) {
+        println!("Setup ViewportManager ...");
         #[cfg(windows)]
         if let Ok(window_handle) = cc.window_handle() {
-            app.viewport_manager = Box::new(NativeViewportManagerWin32::new(window_handle));
+            app.viewport_manager = Box::new(viewport::windows::NativeViewportManagerWin32::new(
+                window_handle,
+            ));
         }
 
+        #[cfg(unix)]
+        {
+            // dynamically switch between X11 and Wayland backends, depending on display compositor
+            let native_viewport_manager: Result<Box<dyn ViewportManager>, HandleError> =
+                if std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland") {
+                    match (cc.window_handle(), cc.display_handle()) {
+                        (Ok(window_handle), Ok(display_handle)) => {
+                            let manager: Box<dyn ViewportManager> =
+                                viewport::unix::NativeViewportManagerWayland::try_new(
+                                    window_handle,
+                                    display_handle,
+                                );
+                            Ok(manager)
+                        }
+                        (Err(e), _) => Err(e),
+                        (_, Err(e)) => Err(e),
+                    }
+                } else {
+                    match cc.window_handle() {
+                        Ok(window_handle) => {
+                            let manager: Box<dyn ViewportManager> = Box::new(
+                                viewport::unix::NativeViewportManagerX11::new(window_handle),
+                            );
+                            Ok(manager)
+                        }
+                        Err(e) => Err(e),
+                    }
+                };
+
+            match native_viewport_manager {
+                Ok(manager) => self.viewport_manager = manager,
+                Err(e) => {
+                    println!(
+                        "On unix system, neither X11 nor Wayland could be used as display compositor, because : {e}"
+                    );
+                    self.viewport_manager = Box::new(DefaultViewportManager::default());
+                }
+            }
+        }
+    }
+
+    // replace values in overlay app with loaded save_state
+    pub fn push_save_state_into_app(&mut self, save_state: SaveState) {
+        // rerouted for editing convenience of SaveState properties
+        backend::storage::push_save_state_into_app(save_state, self);
+    }
+
+    fn setup_persistent_storage(&mut self) {
+        println!("Setup persistent storage ...");
         // if let Some(storage) = cc.storage {
         //     if let Some(save_serialized) = storage.get_string(SAVE_STATE_STORAGE_KEY) {
         //         if let Ok(save_state) = toml::from_str(&save_serialized) {
@@ -101,22 +161,14 @@ impl OverlayApp {
         // TODO: recheck with egui issue (https://github.com/emilk/egui/issues/5689)
         // It prohibits me from using the eframe storage framework
         // Therefore rolling my own for now.
-        let storage = &app.storage;
+        let storage = &self.storage;
         match storage.load_state_from_storage() {
-            Ok(save_state) => app.push_save_state_into_app(save_state),
+            Ok(save_state) => self.push_save_state_into_app(save_state),
             Err(e) => {
                 // TODO: notify user
                 println!("Could not load save_state from storage, because:\n{e}")
             }
         }
-
-        app
-    }
-
-    // replace values in overlay app with loaded save_state
-    pub fn push_save_state_into_app(&mut self, save_state: SaveState) {
-        // rerouted for editing convenience of SaveState properties
-        backend::storage::push_save_state_into_app(save_state, self);
     }
 }
 
@@ -135,10 +187,6 @@ impl App for OverlayApp {
                 .handle_feature_state_input(ctx.input(|i| i.clone()));
         }
 
-        if ctx.input(|i| i.key_down(egui::Key::Num0)) {
-            println!("reset window positions and rects");
-            ctx.memory_mut(|m| m.reset_areas());
-        }
         gui::draw_gui(ctx, frame, self);
 
         // request repaint if you want a live overlay:
@@ -146,7 +194,7 @@ impl App for OverlayApp {
     }
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        egui::Rgba::TRANSPARENT.to_array() // Make sure we don't paint anything behind the rounded corners
+        self.viewport_manager.window_background_color().to_array()
     }
 
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {

@@ -1,0 +1,53 @@
+[package]
+name = "PokeMMO-Companion"
+version = "0.1.0"
+edition = "2024"
+
+
+[dependencies]
+# ——— GUI: egui + eframe (uses winit/glow internally) ——————————————————————————
+eframe = { version = "0.31", features = ["persistence", "wayland", "x11"] }
+egui = "0.31"                                                               # core immediate‐mode GUI library
+egui_extras = { version = "0.31", features = ["default", "all_loaders"] }
+winit = "0.30.11"
+# for images in markdown & egui elements:
+image = { version = "0.25", features = ["png", "jpeg"] }
+egui_commonmark = "0.20"
+pulldown-cmark = "0.13.0"
+
+regex = "1.11.1"
+
+strum = "0.27"        # for the IntoEnumIterator trait
+strum_macros = "0.27" # for #[derive(EnumIter)]
+
+serde = "1.0.219" # data serializer for persisting state 
+toml = "0.8.23"   # save-file format (easily human readable)
+
+# ——— Raw window handles (also used by eframe internally) ————————————————————————
+raw-window-handle = "0.6" # gives me HWND/WlSurface/Window under the hood, when I need functionality that exceeds eframe
+
+# linux specific dependencies
+[target.'cfg(unix)'.dependencies]
+# ——— X11 support (Rust bindings to XCB) (optional) ————————————————————————
+x11rb = { version = "0.13.1", features = ["allow-unsafe-code"] }
+xkeysym = "0.2.1"
+
+users = "0.11" # to provide user's current uid and gid
+# ——— Wayland support  —————————————————————————————————————— 
+wayland-client = "0.31"
+wayland-protocols = "0.32"
+
+# windows specific dependencies
+[target.'cfg(windows)'.dependencies]
+# ——— Windows APIs via windows‐rs ————————————————————————————————————————
+windows = { version = "0.61", features = [
+  "Win32_Foundation",                # HWND, BOOL, etc.
+  "Win32_UI_WindowsAndMessaging",    # CreateWindowExW, GetMessageW…
+  "Win32_System_LibraryLoader",      # GetModuleHandle, if needed
+  "Win32_UI_Input_KeyboardAndMouse", # RegisterHotKey
+] }
+
+# dont need to separate by display compositor -> compile both, decide at runtime
+# [features]
+# wayland = ["smithay-client-toolkit"]
+# x11 = ["x11rb", "xkeysym"]

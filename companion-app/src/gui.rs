@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use eframe::CreationContext;
-// contains all helper functions to render UI to keep the update function in app.rs clean
 use crate::{
     app::OverlayApp,
     backend::{self, feature_state::Feature, ressources_feature::RessourcesSubsystem},
     frontend::viewport::ViewportManager,
     style, utils,
 };
+use eframe::CreationContext;
 use egui::{
     Align2, Color32, Frame, Id, ImageButton, ImageSource, Label, Layout, Margin, ScrollArea,
     Stroke, TextEdit, UiBuilder, Vec2, Window, include_image, widgets::Image,
@@ -122,7 +121,7 @@ pub fn draw_control_panel(ctx: &egui::Context, state: &mut OverlayApp) {
                 style::CUSTOM_FRAME
             },
         )
-        .anchor(Align2::CENTER_BOTTOM, Vec2::new(0., 10.))
+        .anchor(Align2::CENTER_BOTTOM, Vec2::new(0., -20.))
         .title_bar(false)
         .resizable(false)
         .auto_sized() // necessary so the remembered window size doesn't stop up-sizing
@@ -187,6 +186,10 @@ pub fn draw_control_panel(ctx: &egui::Context, state: &mut OverlayApp) {
 ////////////////////////////////////////////////////////////////////////////
 pub fn draw_perf_panel(ctx: &egui::Context, frame: &mut eframe::Frame) {
     Window::new("Perf")
+        .frame(Frame {
+            shadow: egui::Shadow::NONE,
+            ..Frame::window(&ctx.style())
+        })
         .title_bar(false)
         .anchor(Align2::RIGHT_TOP, Vec2::new(-10., 10.))
         .movable(false)

@@ -10,13 +10,22 @@ use crate::style;
 
 pub fn find_asset_folder() -> io::Result<PathBuf> {
     const ASSETS_DIR_NAME: &str = "assets";
+    const CRATE_DIR_NAME: &str = "companion-app";
+    const POSSIBLE_SUB_PATHS: [&str; 2] = ["", CRATE_DIR_NAME];
 
     let mut base_folder = std::env::current_exe();
 
     // prefer project root when in the dev environment
+    #[cfg(debug_assertions)]
     if let Ok(current_dir) = std::env::current_dir() {
-        if current_dir.join(ASSETS_DIR_NAME).is_dir() {
-            base_folder = Ok(current_dir);
+        // build possible sub-paths + "assets" and see if it is there
+        for sub_path in POSSIBLE_SUB_PATHS {
+            let path: String = format!("{sub_path}/{ASSETS_DIR_NAME}");
+
+            if current_dir.join(path).is_dir() {
+                base_folder = Ok(PathBuf::from(sub_path));
+                break;
+            }
         }
     }
 

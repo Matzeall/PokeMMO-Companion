@@ -6,6 +6,8 @@ pub const COLOR_BUTTON_HOVER: Color32 = Color32::from_rgb(242, 89, 33);
 pub const COLOR_BUTTON_PRESSED: Color32 = Color32::from_rgb(191, 67, 22);
 pub const COLOR_BUTTON_SELECTED: Color32 = Color32::from_rgb(89, 31, 10);
 pub const COLOR_PANEL_BACKGROUND: Color32 = Color32::from_rgba_premultiplied(12, 12, 12, 196);
+pub const COLOR_BG_NON_OVERLAY: Color32 = Color32::from_rgba_premultiplied(70, 70, 70, 210);
+
 pub const COLOR_TEXT: Color32 = Color32::from_rgb(242, 242, 242);
 pub const COLOR_HYPERLINK: egui::Color32 = Color32::from_rgb(56, 203, 232);
 pub const COLOR_APPLINK_REST: egui::Color32 = Color32::from_rgb(242, 89, 33);
@@ -89,6 +91,10 @@ pub fn setup_global_application_style(cc: &CreationContext<'_>) {
     style.override_text_valign = None;
     style.visuals.override_text_color = None;
 
+    style.interaction.resize_grab_radius_corner = 10.0; // grab target detection
+    style.interaction.resize_grab_radius_side = 10.0; // side-edge target
+    style.visuals.resize_corner_size = 10.0; // drawn grab box size
+    //
     // BUTTON BG
     style.visuals.widgets.inactive.weak_bg_fill = COLOR_BUTTON_REST; // normal
     style.visuals.widgets.hovered.weak_bg_fill = COLOR_BUTTON_HOVER; // hover
