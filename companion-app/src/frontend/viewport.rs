@@ -66,10 +66,10 @@ impl ViewportManager for DefaultViewportManager {
 }
 
 #[cfg(windows)]
-mod windows {
+pub mod windows {
     use super::*;
     // windows only imports
-    use windows::Win32::{
+    use ::windows::Win32::{
         Foundation::HWND,
         UI::{
             Input::KeyboardAndMouse::{MOD_ALT, RegisterHotKey, VK_C, VK_F, VK_V},
@@ -242,6 +242,7 @@ mod windows {
     }
 }
 
+#[cfg(unix)]
 pub mod unix {
     use super::*;
     use std::error::Error;

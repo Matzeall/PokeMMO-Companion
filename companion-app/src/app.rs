@@ -21,7 +21,6 @@
 //
 
 use eframe::{App, CreationContext, Frame};
-use raw_window_handle::{HandleError, HasDisplayHandle, HasWindowHandle};
 
 use crate::{
     backend::{
@@ -76,15 +75,20 @@ impl OverlayApp {
 
     fn setup_viewport_manager(&mut self, cc: &CreationContext<'_>) {
         println!("Setup ViewportManager ...");
+
         #[cfg(windows)]
-        if let Ok(window_handle) = cc.window_handle() {
-            app.viewport_manager = Box::new(viewport::windows::NativeViewportManagerWin32::new(
-                window_handle,
-            ));
+        {
+            use raw_window_handle::HasWindowHandle;
+            if let Ok(window_handle) = cc.window_handle() {
+                self.viewport_manager = Box::new(
+                    viewport::windows::NativeViewportManagerWin32::new(window_handle),
+                );
+            }
         }
 
         #[cfg(unix)]
         {
+            use raw_window_handle::{HandleError, HasDisplayHandle, HasWindowHandle};
             // dynamically switch between X11 and Wayland backends, depending on display compositor
             let native_viewport_manager: Result<Box<dyn ViewportManager>, HandleError> =
                 if std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland") {
