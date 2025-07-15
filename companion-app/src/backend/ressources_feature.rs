@@ -1,12 +1,12 @@
-use std::{cell::RefCell, collections::HashMap, io, path::PathBuf};
-
+use crate::frontend::style;
 use crate::{
-    style,
-    utils::{self, find_asset_folder},
+    frontend::utils as frontend_utils,
+    utils::{self as global_utils, find_asset_folder},
 };
-use egui::{Label, Sense, Ui, Vec2};
+use egui::{Label, Sense, TextStyle, Ui, Vec2};
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use regex::Regex;
+use std::{cell::RefCell, collections::HashMap, io, path::PathBuf};
 
 pub struct RessourcesSubsystem {
     available_ressources: HashMap<String, Box<dyn Resource>>,
@@ -32,8 +32,6 @@ impl RessourcesSubsystem {
     }
 
     fn load_resources(&mut self) {
-        // TODO: actual load from disk/storage behaviour
-
         // // Mock resources
         // self.add_link_resource("PokeMMO Info", "https://pokemmo.info");
         // self.add_link_resource(
@@ -50,10 +48,12 @@ impl RessourcesSubsystem {
         //     vec!["PokeMMO Info", "EV Hordes", "Markdown", "AppLink"],
         // );
 
+        println!("\nResourceSubsystem - loading resources from disk ...\n");
+
         let resources_dir = self.resource_folder_path();
 
         let md_file_list = match resources_dir {
-            Ok(dir) => utils::read_in_all_markdown_files(dir),
+            Ok(dir) => global_utils::read_in_all_markdown_files(dir),
             Err(e) => Err(e),
         };
 
@@ -455,7 +455,7 @@ impl Resource for AppLinkResource {
             if response.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
 
-                utils::draw_highlight_underline(ui, &response, 2.);
+                frontend_utils::draw_highlight_underline(ui, &response, 2.);
 
                 // draw indicator arrow
                 let indicator_label = Label::new("»").sense(Sense::click());
@@ -483,9 +483,17 @@ pub struct MarkdownResource {
 
 impl MarkdownResource {
     pub fn new(resource_title: impl Into<String>, markdown_text: impl Into<String>) -> Self {
+        let md_text: String = markdown_text.into();
+
+        // finds all headings
+        let re = Regex::new(r"(?m)^(?:#{1,6})\s").unwrap();
+
+        // normalizes all headings to level 5, because it's the first non-strong but still enlarged heading
+        let adjusted_md_text = re.replace_all(md_text.as_str(), "##### ").into_owned();
+
         Self {
             resource_title: resource_title.into(),
-            markdown_text: markdown_text.into(),
+            markdown_text: adjusted_md_text,
             markdown_cache: RefCell::new(CommonMarkCache::default()),
         }
         // DEBUG
@@ -508,6 +516,26 @@ impl Resource for MarkdownResource {
         _resource_subsystem: &RessourcesSubsystem,
         ui: &mut Ui,
     ) -> Option<String> {
+        // setup custom markdown style
+        // strong text color
+        ui.style_mut().visuals.widgets.active.fg_stroke.color = style::COLOR_HEADING_1;
+
+        // heading size
+        let body_size = ui
+            .style_mut()
+            .text_styles
+            .get(&TextStyle::Body)
+            .map(|f| f.size)
+            .unwrap_or(14.);
+        ui.style_mut().text_styles.insert(
+            TextStyle::Heading,
+            egui::FontId {
+                size: body_size * 2.75,
+                family: (style::strong_font()),
+            },
+        );
+
+        // pass to the renderer
         let markdown_viewer = CommonMarkViewer::new();
         markdown_viewer.show(
             ui,

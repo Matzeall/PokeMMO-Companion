@@ -1,8 +1,6 @@
 mod app;
 mod backend;
 mod frontend;
-mod gui;
-mod style;
 mod utils;
 
 use app::{APP_ID, OverlayApp};
@@ -21,6 +19,10 @@ fn main() {
                 .with_mouse_passthrough(false)
                 // force the window above all others:
                 .with_always_on_top()
+                // .with_icon( )
+                .with_taskbar(true)
+                .with_title(APP_ID)
+                .with_app_id(APP_ID)
         })),
         ..Default::default()
     };

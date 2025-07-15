@@ -1,13 +1,14 @@
 use std::{
-    sync::mpsc::{self, Receiver},
+    sync::{mpsc::{self, Receiver}, Arc},
     thread,
 };
 
 use eframe::Frame;
-use egui::Context;
-use raw_window_handle::WindowHandle;
 
-use crate::style;
+use egui::Context;
+use raw_window_handle::{WindowHandle,DisplayHandle};
+
+use crate::frontend::style;
 
 /// Focused when interacting with any of the windows
 /// Unfocused when seeing the overlay but interacting with something underneath
@@ -35,7 +36,8 @@ impl FocusState {
 pub trait ViewportManager {
     fn update_viewport(&mut self, ctx: &Context, frame: &mut Frame); // needs to be called each frame
     fn current_focus_state(&self) -> FocusState;
-    fn window_background_color(&self) -> egui::Rgba { egui::Rgba::TRANSPARENT }
+    fn window_background_color(&self) -> egui::Rgba { egui::Rgba::TRANSPARENT       /*  style::COLOR_BG_NON_OVERLAY.into() */ }
+    fn should_draw_gui(&self) -> bool {true}
 
     // fn setup_focused_mode(&self);   // INFO: not easily possible because communication between
     // fn setup_closed_mode(&self);    // listener thread and main thread is limitied, because of
@@ -70,7 +72,8 @@ pub mod windows {
     use super::*;
     // windows only imports
 
-    use std::sync::{mpsc::Sender, Arc};
+    use winit::window::Window;
+    use std::sync::mpsc::Sender;
     use ::windows::Win32::{
         Foundation::HWND,
         UI::{
@@ -82,7 +85,6 @@ pub mod windows {
             },
         },
     };
-    use winit::window::Window;
 
     /// manages the focus state of the main window by calling Win32 native functionality like
     /// RegisterHotKey and the Windows Event Loop
@@ -278,9 +280,11 @@ pub mod unix {
     use std::path::PathBuf;
     use std::process::{Child, Command, Stdio};
     use std::time::Duration;
-    use raw_window_handle::{DisplayHandle , RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle};
+    use raw_window_handle::{ RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle};
+    use winit::window::Window;
     use x11rb::connection::Connection;
-    use x11rb::protocol::{Event, xproto::*};
+    use x11rb::protocol::xproto::{ChangeWindowAttributesAux, ConnectionExt, EventMask, GetKeyboardMappingReply, GrabMode, ModMask};
+    use x11rb::protocol::Event;
     use xkeysym::{self, key};
 
     // use wayland_client::{
@@ -469,6 +473,8 @@ pub mod unix {
         focus_state_rx: Option<Receiver<FocusState>>,
         hotkey_daemon_handle: Option<Child>, // used for later shutdown
 
+        winit_window: Arc<Window>,
+
         // wayland specifics
         // _conn: wayland_client::Connection,
         // _qh: QueueHandle<WaylandEventQueue>,
@@ -482,30 +488,13 @@ pub mod unix {
     const DAEMON_CLOSE_EVENT: &str = "close";
     const DAEMON_VISIBLE_EVENT: &str = "visible";
 
-    // /// Dummy state type for registry init. We don't need to handle any events here.
-    // struct WaylandEventQueue;
-    //
-    // // We only need to implement Dispatch for the registry; we ignore dynamic adds/removes.
-    // impl Dispatch<WlRegistry, GlobalListContents> for WaylandEventQueue {
-    //     fn event(
-    //         _state: &mut Self,
-    //         _proxy: &WlRegistry,
-    //         _event: <WlRegistry as wayland_client::Proxy>::Event,
-    //         _data: &GlobalListContents,
-    //         _conn: &wayland_client::Connection,
-    //         _qhandle: &QueueHandle<Self>,
-    //     ) {
-    //         // no-op
-    //     }
-    // }
-
 
     impl NativeViewportManagerWayland {
         /// if xdg-desktop-portal has extension global hotkeys -> register & listen to them
         /// else ask user if he wants to start sudo hotkey-daemon
         ///     -> granted : pkexec ./hotkey-daemon
         ///     -> canceled: return DefaultViewportManager
-        pub fn try_new(window_handle: WindowHandle<'_>, display_handle: DisplayHandle) -> Box<dyn ViewportManager> {
+        pub fn try_new(window_handle: WindowHandle<'_>, display_handle: DisplayHandle, winit_window: Arc<Window>) -> Box<dyn ViewportManager> {
             let mut manager: Box<dyn ViewportManager> = Box::new(DefaultViewportManager::default());
 
             // try to make a valid native wayland overlay viewport -> maybe fallback to default
@@ -513,7 +502,9 @@ pub mod unix {
                 app_focus: FocusState::Focused,
                 focus_state_rx: None,
                 hotkey_daemon_handle: None,
+                winit_window
             };
+            native_manager.winit_window.set_decorations(true); // window needs to top bar in any case
 
             let _surface_ptr = match window_handle.as_raw() {
                 RawWindowHandle::Wayland(WaylandWindowHandle { surface, .. }) => {
@@ -528,6 +519,11 @@ pub mod unix {
                 }
                 _ => return manager,
             };
+
+            
+            // if let Some(xdg_toplevel) = self.winit_window.xdg_toplevel() {
+            //     xdg_toplevel
+            // }
 
             // INFO: display handle and window handle won't get me what I want, because eframe and
             // winit completely abstract the wayland connection away, and there can only be one
@@ -602,6 +598,7 @@ pub mod unix {
                                     );
                                     native_manager.focus_state_rx = Some(receiver);
                                     manager = Box::new(native_manager);
+
                                 }
                                 Err(e) => {
                                     println!(
@@ -627,6 +624,7 @@ pub mod unix {
         fn spawn_hotkey_listener_thread(&self) -> io::Result<Receiver<FocusState>> {
             let (focus_update_tx, focus_update_rx) = mpsc::channel();
 
+            let winit_window = self.winit_window.clone();
             let socket_path = socket_path()?;
 
             thread::spawn(move || {
@@ -650,16 +648,24 @@ pub mod unix {
                         Ok(msg) => match msg.as_str() {
                             DAEMON_FOCUS_EVENT => {
                                 println!("Received: Focus Overlay");
-                                
+                                let _ = winit_window.set_cursor_hittest(true);
+                                // hint is ignored by GNOME
+                                // winit_window.set_window_level(winit::window::WindowLevel::AlwaysOnTop);
+
                                 let _ = focus_update_tx.send(FocusState::Focused);
                             }
                             DAEMON_CLOSE_EVENT => {
                                 println!("Received: Close Overlay");
-                                let _ = focus_update_tx.send(FocusState::Focused);
+                                let _ = winit_window.set_cursor_hittest(false);
+
+                                let _ = focus_update_tx.send(FocusState::Hidden);
                             }
                             DAEMON_VISIBLE_EVENT => {
-                                println!("Received: Make Overlay non-interactive");
-                                let _ = focus_update_tx.send(FocusState::Focused);
+                                println!("Received: Make Overlay non-interactive (not supported)");
+                                let _ = winit_window.set_cursor_hittest(false);
+                                // hint is ignored by GNOME
+                                // winit_window.set_window_level(winit::window::WindowLevel::AlwaysOnTop);
+                                let _ = focus_update_tx.send(FocusState::Unfocused);
                             }
                             _ => {}
                         },
@@ -683,11 +689,37 @@ pub mod unix {
                 }
             }
 
-            // _ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(true));
+        
+            
+            if self.winit_window.is_maximized() {
+                self.winit_window.set_maximized(false);
+            } else {
+                // let monitor = self.winit_window
+                //     .current_monitor()
+                //     .or_else(|| self.winit_window.primary_monitor())
+                //     .expect("no monitor");
+                // // raw physical size of monitor
+                // let size_px = monitor.size(); 
+                //
+                // // DPI scale
+                // let scale = monitor.scale_factor();
+                //
+                // let window_bar_height = 100.; // no way to get the actual info
+                // let _ = self.winit_window.request_inner_size(LogicalSize {
+                //     width : size_px.width  as f64 / scale,
+                //     height: size_px.height as f64 / scale - window_bar_height,
+                // });
+                // Not supported by wayland -> user has to position it manually...
+                // self.winit_window.set_outer_position(monitor.position());
+            }
         }
 
         fn current_focus_state(&self) -> FocusState {
             self.app_focus
+        }
+
+        fn should_draw_gui(&self) -> bool {
+            self.app_focus != FocusState::Hidden
         }
     }
 

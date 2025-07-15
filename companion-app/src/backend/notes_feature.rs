@@ -1,19 +1,20 @@
+use crate::frontend::style;
 use egui::{
     Color32, FontId, Stroke, TextFormat, TextStyle, Ui,
     text::{LayoutJob, LayoutSection},
 };
 use regex::Regex;
 
-use crate::style;
-
 pub struct NotesSubsystem {
     pub text: String,
+    pub requests_focus: bool,
 }
 
 impl NotesSubsystem {
     pub fn new() -> Self {
         Self {
             text: String::new(),
+            requests_focus: false,
         }
     }
 }

@@ -10,15 +10,18 @@
 //             # After changing Cargo.toml, run : cargo update -p egui # rebuild from fork
 // - move into frontend folder (style, gui)
 //      + refactor structs out into multiple files and use cfg attributes in mod file
+// - add in-file scroll target links (e.g. cache.add_link_hook("#next");
+//      - if self.cache.get_link_hook("#next").unwrap() {
+//            self.curr_page = 1;
+//       })
 // - look into nvim debugging
 //      - toggle breakpoint in current line
 //      - view contents of variable in scope
 //      - step into/over/play until next breakpoint
 //      - attaching debugger -> what is a debugger?
 //
-//
-//
-//
+
+use std::sync::Arc;
 
 use eframe::{App, CreationContext, Frame};
 
@@ -28,12 +31,16 @@ use crate::{
         feature_state::FeatureSubsystem,
         notes_feature::NotesSubsystem,
         ressources_feature::RessourcesSubsystem,
+        settings::SettingsSubsystem,
         storage::{FileStorage, PersistentStorage, SaveState},
     },
-    frontend::viewport::{self, DefaultViewportManager, ViewportManager},
-    gui::{self, GuiSubsystem},
+    frontend::{
+        self,
+        gui_subsystem::GuiSubsystem,
+        viewport::{self, DefaultViewportManager, ViewportManager},
+    },
 };
-use egui::Context;
+use egui::{Context, Modifiers};
 
 pub const APP_ID: &str = "pokemmo-companion";
 
@@ -46,6 +53,8 @@ pub struct OverlayApp {
 
     pub gui: GuiSubsystem,
 
+    pub settings: SettingsSubsystem,
+
     pub ressources: RessourcesSubsystem,
 
     pub notes: NotesSubsystem,
@@ -53,6 +62,8 @@ pub struct OverlayApp {
     storage: Box<dyn PersistentStorage>,
 
     pub viewport_manager: Box<dyn ViewportManager>,
+
+    winit_window: Option<Arc<winit::window::Window>>,
 }
 impl OverlayApp {
     pub fn new(cc: &CreationContext<'_>) -> Self {
@@ -60,30 +71,49 @@ impl OverlayApp {
         let mut app = Self {
             features: FeatureSubsystem::new(),
             gui: GuiSubsystem::new(cc),
+            settings: SettingsSubsystem::new(),
             ressources: RessourcesSubsystem::new(),
             notes: NotesSubsystem::new(),
             storage: Box::new(FileStorage::new()),
             viewport_manager: Box::new(DefaultViewportManager::default()),
+            winit_window: cc.winit_window.clone(),
         };
 
-        app.setup_viewport_manager(cc);
-
+        // setup storage and load settings
         app.setup_persistent_storage();
+
+        app.setup_native_viewport_manager();
 
         app
     }
 
-    fn setup_viewport_manager(&mut self, cc: &CreationContext<'_>) {
+    fn setup_native_viewport_manager(
+        &mut self,
+        /*cc: &CreationContext<'_>*/
+    ) {
         println!("Setup ViewportManager ...");
+        self.settings.request_viewport_restart = false;
+        let Some(winit_window) = self
+            .winit_window
+            .clone()
+            // also early out if disabled overlay
+            .filter(|_| !self.settings.disable_overlay)
+        else {
+            println!(
+                "Couldn't start viewport manager, because winit_window was lost/not valid\n=> Falling back to non-overlay viewport..."
+            );
+            self.viewport_manager = Box::new(DefaultViewportManager::default());
+            return;
+        };
 
         #[cfg(windows)]
         {
             use raw_window_handle::HasWindowHandle;
-            if let Ok(window_handle) = cc.window_handle() {
+            if let Ok(window_handle) = winit_window.window_handle() {
                 self.viewport_manager =
                     Box::new(viewport::windows::NativeViewportManagerWin32::new(
                         window_handle,
-                        cc.winit_window.clone().expect("winit window not valid"),
+                        winit_window.clone(),
                     ));
             }
         }
@@ -93,13 +123,17 @@ impl OverlayApp {
             use raw_window_handle::{HandleError, HasDisplayHandle, HasWindowHandle};
             // dynamically switch between X11 and Wayland backends, depending on display compositor
             let native_viewport_manager: Result<Box<dyn ViewportManager>, HandleError> =
-                if std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland") {
-                    match (cc.window_handle(), cc.display_handle()) {
+                if std::env::var("WAYLAND_DISPLAY")
+                    .as_deref()
+                    .is_ok_and(|env| env.contains("wayland"))
+                {
+                    match (winit_window.window_handle(), winit_window.display_handle()) {
                         (Ok(window_handle), Ok(display_handle)) => {
                             let manager: Box<dyn ViewportManager> =
                                 viewport::unix::NativeViewportManagerWayland::try_new(
                                     window_handle,
                                     display_handle,
+                                    winit_window.clone(),
                                 );
                             Ok(manager)
                         }
@@ -107,7 +141,7 @@ impl OverlayApp {
                         (_, Err(e)) => Err(e),
                     }
                 } else {
-                    match cc.window_handle() {
+                    match winit_window.window_handle() {
                         Ok(window_handle) => {
                             let manager: Box<dyn ViewportManager> = Box::new(
                                 viewport::unix::NativeViewportManagerX11::new(window_handle),
@@ -181,10 +215,24 @@ impl OverlayApp {
 // main egui update loop
 impl App for OverlayApp {
     fn update(&mut self, ctx: &Context, frame: &mut Frame) {
-        // Poll any platform messages:
-        // while let Ok(msg) = self.plat_rx.try_recv() { … }
+        if self.settings.request_viewport_restart {
+            self.setup_native_viewport_manager();
+        } else {
+            self.viewport_manager.update_viewport(ctx, frame);
+        }
 
-        self.viewport_manager.update_viewport(ctx, frame);
+        // check whether to clear the ui data -> reset window positions and caches etc.
+        if ctx
+            .input(|r| r.clone())
+            .consume_key(Modifiers::CTRL, egui::Key::Num0)
+            || self.settings.request_clear_ui_data
+        {
+            self.settings.request_clear_ui_data = false;
+            ctx.memory_mut(|w| {
+                w.reset_areas();
+                w.data.clear();
+            })
+        }
 
         // only handle input when control_bar is also visible
         // and the application is currently meant to be controlled
@@ -193,14 +241,19 @@ impl App for OverlayApp {
                 .handle_feature_state_input(ctx.input(|i| i.clone()));
         }
 
-        gui::draw_gui(ctx, frame, self);
-
+        if self.viewport_manager.should_draw_gui() {
+            frontend::gui::main_gui::draw_gui(ctx, frame, self);
+        }
         // request repaint if you want a live overlay:
         ctx.request_repaint();
     }
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        self.viewport_manager.window_background_color().to_array()
+        if self.settings.transparent_background_always {
+            egui::Rgba::TRANSPARENT.to_array()
+        } else {
+            self.viewport_manager.window_background_color().to_array()
+        }
     }
 
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {

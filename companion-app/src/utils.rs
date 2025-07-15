@@ -6,8 +6,6 @@ use std::{
     path::PathBuf,
 };
 
-use crate::style;
-
 pub fn find_asset_folder() -> io::Result<PathBuf> {
     const ASSETS_DIR_NAME: &str = "assets";
     const CRATE_DIR_NAME: &str = "companion-app";
@@ -69,22 +67,4 @@ pub fn read_in_all_markdown_files(path: PathBuf) -> Result<Vec<(String, String)>
         }
     }
     Ok(md_file_list)
-}
-
-pub fn draw_highlight_underline(
-    ui: &mut egui::Ui,
-    hover_response: &egui::response::Response,
-    bottom_offset: f32,
-) {
-    let y = hover_response.rect.bottom() - 1.0 + bottom_offset;
-    ui.painter().line_segment(
-        [
-            egui::Pos2::new(hover_response.rect.min.x, y),
-            egui::Pos2::new(hover_response.rect.max.x, y),
-        ],
-        egui::Stroke {
-            width: 1.,
-            color: style::COLOR_APPLINK_HOVER,
-        },
-    );
 }

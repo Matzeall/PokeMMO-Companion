@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use egui::{InputState, Key};
+use egui::{InputState, Key, Modifiers};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -11,10 +11,12 @@ use strum_macros::EnumIter;
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, EnumIter)]
 pub enum Feature {
     Notes,
-    Ressources,
+    Resources,
     TypeMatrix,
     BreedingCalculator,
+    Settings,
 }
+
 impl Feature {
     pub fn get_name(&self) -> String {
         format!("{:?}", self)
@@ -52,29 +54,32 @@ impl FeatureSubsystem {
             .expect("every feature should be contained in the map after app init")
     }
 
-    pub fn handle_feature_state_input(&mut self, input: InputState) {
-        // TODO: consume shortcuts when pressed so they don't effect anything else
-        // like the Notes text edit, which always starts with an n inside when opened by alt+N
-
-        if input.key_pressed(Key::N) && input.modifiers.alt {
+    pub fn handle_feature_state_input(&mut self, mut input: InputState) {
+        if input.consume_key(Modifiers::ALT, Key::N) {
             self.set_feature_active(Feature::Notes, !self.is_feature_active(Feature::Notes));
         }
-        if input.key_pressed(Key::R) && input.modifiers.alt {
+        if input.consume_key(Modifiers::ALT, Key::R) {
             self.set_feature_active(
-                Feature::Ressources,
-                !self.is_feature_active(Feature::Ressources),
+                Feature::Resources,
+                !self.is_feature_active(Feature::Resources),
             );
         }
-        if input.key_pressed(Key::T) && input.modifiers.alt {
+        if input.consume_key(Modifiers::ALT, Key::T) {
             self.set_feature_active(
                 Feature::TypeMatrix,
                 !self.is_feature_active(Feature::TypeMatrix),
             );
         }
-        if input.key_pressed(Key::B) && input.modifiers.alt {
+        if input.consume_key(Modifiers::ALT, Key::B) {
             self.set_feature_active(
                 Feature::BreedingCalculator,
                 !self.is_feature_active(Feature::BreedingCalculator),
+            );
+        }
+        if input.consume_key(Modifiers::ALT, Key::O) {
+            self.set_feature_active(
+                Feature::Settings,
+                !self.is_feature_active(Feature::Settings),
             );
         }
     }

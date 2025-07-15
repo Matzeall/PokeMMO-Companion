@@ -13,14 +13,22 @@ use crate::app::OverlayApp;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
 pub struct SaveState {
+    version: u8,
+    disable_overlay: bool,
+    transparent_background_always: bool,
     personal_notes: String,
+    type_matrix_scale: f32,
 }
 
 // default save values
 impl Default for SaveState {
     fn default() -> Self {
         Self {
+            version: 0,
+            disable_overlay: false,
+            transparent_background_always: false,
             personal_notes: "".to_string(),
+            type_matrix_scale: 1.0,
         }
     }
 }
@@ -31,14 +39,22 @@ impl Default for SaveState {
 impl From<&OverlayApp> for SaveState {
     fn from(app: &OverlayApp) -> Self {
         SaveState {
+            version: app.settings.version,
+            disable_overlay: app.settings.disable_overlay,
+            transparent_background_always: app.settings.transparent_background_always,
             personal_notes: app.notes.text.clone(),
+            type_matrix_scale: app.settings.type_matrix_scale,
         }
     }
 }
 
 // replace values in overlay app with loaded save_state
 pub fn push_save_state_into_app(save_state: SaveState, app: &mut OverlayApp) {
+    app.settings.version = save_state.version;
+    app.settings.disable_overlay = save_state.disable_overlay;
+    app.settings.transparent_background_always = save_state.transparent_background_always;
     app.notes.text = save_state.personal_notes.clone();
+    app.settings.type_matrix_scale = save_state.type_matrix_scale;
 }
 
 /////////////////////////////////////////////////////////////////////
