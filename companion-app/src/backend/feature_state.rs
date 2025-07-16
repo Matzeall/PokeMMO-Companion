@@ -38,7 +38,7 @@ impl FeatureSubsystem {
 
     pub fn set_feature_active(&mut self, feature: Feature, enabled: bool) {
         self.active_feature_windows.insert(feature, enabled);
-        println!("set {feature:#?} to {enabled}");
+        println!("set feature({feature:#?}) to enabled({enabled})");
     }
 
     pub fn is_feature_active(&self, feature: Feature) -> bool {

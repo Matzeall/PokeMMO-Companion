@@ -44,7 +44,7 @@ fn generate_icon_include_method() {
         generated.push_str(&format!("\n        \"{key}\".to_owned(),"));
         generated.push_str(&format!(
             "\n        include_image!(\"../../{}\"),",
-            literal_path.display()
+            literal_path.display().to_string().replace("\\", "/")
         ));
         generated.push_str("\n    );");
         // generated.push_str(&format!(

@@ -90,17 +90,17 @@ pub mod windows {
     /// RegisterHotKey and the Windows Event Loop
     pub struct NativeViewportManagerWin32 {
         app_focus: FocusState,
+        focus_state_rx: Option<Receiver<FocusState>>,
         hwnd_int: isize,
         winit_window: Arc<Window>,
-        focus_state_rx: Option<Receiver<FocusState>>,
     }
 
     impl NativeViewportManagerWin32 {
         pub fn new(window_handle: WindowHandle<'_>, winit_window: Arc<Window>) -> Self {
             let mut manager = Self {
                 app_focus: FocusState::Focused,
-                hwnd_int: 0,
                 focus_state_rx: None,
+                hwnd_int: 0,
                 winit_window,
             };
 
@@ -114,6 +114,8 @@ pub mod windows {
                     "Error setting up the Listener-thread (no Win32 window handle). \nHotKeys to bring back focus, will not work!"
                 ),
             }
+
+            manager.winit_window.set_decorations(false);
 
             manager
         }
