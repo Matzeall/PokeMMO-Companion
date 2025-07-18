@@ -1,0 +1,91 @@
+name: CI & Release
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:     # release only on tags like "v1.2.3"
+      - 'v*'
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            ext: tar.gz
+          - os: windows-latest
+            ext: zip
+            
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build (release)
+      run: cargo build --release
+    
+    - name: Run tests
+      run: cargo test --verbose
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+         name: PokeMMO-Companion-${{ matrix.os }}
+         path: target/release/
+
+  release: 
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # necessary because of assets/resources/
+
+      - name: Download Ubuntu artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PokeMMO-Companion-ubuntu-latest
+          path: ./ubuntu/
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PokeMMO-Companion-windows-latest
+          path: ./windows/
+
+      - name: Prepare release directory
+        run: |
+          mkdir -p release/ubuntu release/windows
+  
+          # Move the downloaded binaries into each folder
+          mv ubuntu/my-crate      release/ubuntu/
+          mv windows/my-crate.exe release/windows/
+  
+          # copy over resources folder, but keep nested folder structure (release/OS/assets/resources)
+          cp -r --parents assets/resources release/ubuntu
+          cp -r --parents assets/resources release/windows
+      
+      - name: Package Ubuntu (.tar.gz)
+        run: |
+          tar -czf PokeMMO-Companion-${{ github.ref_name }}-ubuntu.tar.gz -C release ubuntu
+
+      - name: Package Windows (.zip)
+        run: |
+          cd release
+          zip -r ../PokeMMO-Companion-${{ github.ref_name }}-windows.zip windows
+      
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: |
+            PokeMMO-Companion-${{ github.ref_name }}-ubuntu.tar.gz
+            PokeMMO-Companion-${{ github.ref_name }}-windows.zip
+          draft: false
+          prerelease: false
+          make_latest: true
+
