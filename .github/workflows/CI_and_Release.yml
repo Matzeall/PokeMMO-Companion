@@ -1,5 +1,8 @@
 name: CI & Release
 
+permissions:
+  contents: write # necessary to create releases and upload files
+  
 on:
   push:
     branches: [ "main" ]
