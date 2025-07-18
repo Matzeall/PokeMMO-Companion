@@ -74,12 +74,16 @@ jobs:
       
       - name: Package Ubuntu (.tar.gz)
         run: |
-          tar -czf PokeMMO-Companion-${{ github.ref_name }}-ubuntu.tar.gz -C release ubuntu
+          mv release/ubuntu release/PokeMMO-Companion 
+          tar -czf PokeMMO-Companion-${{ github.ref_name }}-ubuntu.tar.gz -C release PokeMMO-Companion
+          mv release/PokeMMO-Companion release/ubuntu
 
       - name: Package Windows (.zip)
         run: |
           cd release
-          zip -r ../PokeMMO-Companion-${{ github.ref_name }}-windows.zip windows
+          mv windows PokeMMO-Companion
+          zip -r ../PokeMMO-Companion-${{ github.ref_name }}-windows.zip PokeMMO-Companion
+          mv PokeMMO-Companion windows
       
       - name: Create Release
         id: create_release
@@ -93,4 +97,6 @@ jobs:
           draft: false
           prerelease: false
           make_latest: true
+          generate_release_notes: false
+          overwrite_files: true
 
