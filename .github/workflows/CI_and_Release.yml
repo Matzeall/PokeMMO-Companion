@@ -61,8 +61,8 @@ jobs:
           mkdir -p release/ubuntu release/windows
   
           # Move the downloaded binaries into each folder
-          mv ubuntu/my-crate      release/ubuntu/
-          mv windows/my-crate.exe release/windows/
+          mv ubuntu/PokeMMO-Companion      release/ubuntu/
+          mv windows/PokeMMO-Companion.exe release/windows/
   
           # copy over resources folder, but keep nested folder structure (release/OS/assets/resources)
           cp -r --parents assets/resources release/ubuntu
