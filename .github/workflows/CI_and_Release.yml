@@ -64,8 +64,10 @@ jobs:
           mkdir -p release/ubuntu release/windows
   
           # Move the downloaded binaries into each folder
-          mv ubuntu/PokeMMO-Companion      release/ubuntu/
+          mv ubuntu/PokeMMO-Companion  release/ubuntu/
           mv ubuntu/hotkey-daemon      release/ubuntu/
+          chmod +x release/ubuntu/PokeMMO-Companion
+          chmod +x release/ubuntu/hotkey-daemon
           mv windows/PokeMMO-Companion.exe release/windows/
   
           # copy over resources folder, but keep nested folder structure (release/OS/assets/resources)
