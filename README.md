@@ -29,4 +29,5 @@ For all issues, feature requests or support questions please open a new [issue](
 All pull requests are welcome, but they must be approved by me before being merged.
 
 ## License
-[TODO]
+This project is under the standard [MIT License](https://github.com/Matzeall/PokeMMO-Companion/blob/main/LICENSE).\
+Do anything you like with it, but keep it free for everyone.
