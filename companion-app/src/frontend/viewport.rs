@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use std::{
     sync::{mpsc::{self, Receiver}, Arc},
     thread,

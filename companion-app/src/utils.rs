@@ -8,8 +8,6 @@ use std::{
 
 pub fn find_asset_folder() -> io::Result<PathBuf> {
     const ASSETS_DIR_NAME: &str = "assets";
-    const CRATE_DIR_NAME: &str = "companion-app";
-    const POSSIBLE_SUB_PATHS: [&str; 2] = ["", CRATE_DIR_NAME];
 
     // use folder the executable is in
     let mut base_folder = std::env::current_exe();
@@ -22,6 +20,9 @@ pub fn find_asset_folder() -> io::Result<PathBuf> {
     // prefer source code project root when in the dev environment
     #[cfg(debug_assertions)]
     if let Ok(current_dir) = std::env::current_dir() {
+        const CRATE_DIR_NAME: &str = "companion-app";
+        const POSSIBLE_SUB_PATHS: [&str; 2] = ["", CRATE_DIR_NAME];
+
         // build possible sub-paths + "assets" and see if it is there
         for sub_path in POSSIBLE_SUB_PATHS {
             let path: String = format!("{sub_path}/{ASSETS_DIR_NAME}");

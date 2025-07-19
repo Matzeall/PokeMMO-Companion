@@ -1,25 +1,11 @@
 // defines runtime data struct -> holds mutable application state
 // is instantiated by main.rs
 // TODO:
-// - Finally get to the main app focus issue -> mouse passthrough & unfocussed input events
-//     - this is how I could swap or patch a crate if I need to fix something in my own fork:
-//             egui    = { git = "https://github.com/your‑username/egui.git", branch = "my‑patch‑branch" } # swapping
-//             [patch.crates-io] # patching
-//             egui = { git = "https://github.com/your‑username/egui.git", branch = "my‑patch‑branch" }
-//             egui = { path = "../my‑egui‑fork" } # for development with relative path
-//             # After changing Cargo.toml, run : cargo update -p egui # rebuild from fork
-// - move into frontend folder (style, gui)
-//      + refactor structs out into multiple files and use cfg attributes in mod file
-// - add in-file scroll target links (e.g. cache.add_link_hook("#next");
+// - refactor viewport structs out into multiple files and use cfg attributes in mod file
+// - add resources in-file scroll target links (e.g. cache.add_link_hook("#next");
 //      - if self.cache.get_link_hook("#next").unwrap() {
 //            self.curr_page = 1;
 //       })
-// - look into nvim debugging
-//      - toggle breakpoint in current line
-//      - view contents of variable in scope
-//      - step into/over/play until next breakpoint
-//      - attaching debugger -> what is a debugger?
-//
 
 use std::sync::Arc;
 

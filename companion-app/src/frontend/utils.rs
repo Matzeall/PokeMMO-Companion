@@ -1,6 +1,6 @@
 use super::viewport::ViewportManager;
 use crate::frontend::style;
-use egui::{Id, Ui, Vec2, Window};
+use egui::{Ui, Vec2, Window};
 use egui_extras::{Size, StripBuilder};
 
 pub fn construct_base_window<'open>(
@@ -59,6 +59,7 @@ where
 pub fn get_dev_slider_value(_id: impl Into<String>, _ui: &Ui) -> f32 {
     #[cfg(debug_assertions)]
     {
+        use egui::Id;
         let id = Id::new(_id.into());
 
         _ui.ctx()
