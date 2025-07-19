@@ -1,7 +1,10 @@
 # PokeMMO-Companion
-![CI & Release](https://img.shields.io/github/actions/workflow/status/Matzeall/PokeMMO-Companion/CI_and_Release.yml/badge.svg?branch=main)
-![Latest Release](https://img.shields.io/github/v/release/Matzeall/PokeMMO-Companion?label=latest%20release)
-![Total Downloads](https://img.shields.io/github/downloads/Matzeall/PokeMMO-Companion/total?)
+![CI & Release](https://img.shields.io/github/actions/workflow/status/Matzeall/PokeMMO-Companion/CI_and_Release.yml)
+![Latest Release](https://img.shields.io/github/v/release/Matzeall/PokeMMO-Companion)
+![License](https://img.shields.io/github/license/Matzeall/PokeMMO-Companion)
+![GitHub repo size](https://img.shields.io/github/repo-size/Matzeall/PokeMMO-Companion)
+![Total Downloads](https://img.shields.io/github/downloads/Matzeall/PokeMMO-Companion/total)
+
 
 ## Contents
 * [Installation](#installation)
