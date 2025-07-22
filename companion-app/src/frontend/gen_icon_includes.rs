@@ -41,6 +41,10 @@ pub fn get_icon_map() -> HashMap<String, ImageSource<'static>> {
         include_image!("../../assets/icons/missing_icon.png"),
     );
     m.insert(
+        "pokemmo-companion-main".to_owned(),
+        include_image!("../../assets/icons/pokemmo-companion-main.png"),
+    );
+    m.insert(
         "shutdown_button".to_owned(),
         include_image!("../../assets/icons/shutdown_button.png"),
     );

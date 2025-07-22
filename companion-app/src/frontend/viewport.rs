@@ -293,13 +293,13 @@ pub mod windows {
         // through that LPARAM parameter
         unsafe {
             let _ = EnumWindows(
-                Some(enum_proc),
+                Some(enum_is_pokemmo_window),
                 LPARAM(&mut found as *mut _ as isize),
             );
         }
 
         if let Some(window)= &found {
-            println!("found pokemmo window: {}", window.0 as isize);
+            println!("found new pokemmo window: {}", window.0 as isize);
         }else {
             println!("pokemmo window not found...");
         }
@@ -307,7 +307,7 @@ pub mod windows {
         found
     }
 
-    extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    extern "system" fn enum_is_pokemmo_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
         unsafe {
             // skip hidden windows
             if !IsWindowVisible(hwnd).as_bool() {
@@ -334,8 +334,8 @@ pub mod windows {
 
             // Weird edge case where the game title is in Cyrillic in some moments
             let cleaned_title = convert_cyrillic_string(title.as_str());
-            // println!("title in question: {cleaned_title}");
-            if cleaned_title.contains("pokemmo") && !cleaned_title.contains("companion") && !cleaned_title.contains(APP_ID) {
+            // if cleaned_title.eq_ignore_ascii_case("pokemmo") && !cleaned_title.contains("companion") && !cleaned_title.contains(APP_ID) {
+            if cleaned_title.eq_ignore_ascii_case("pokemmo") {
                 // store and stop enumeration
                 *(lparam.0 as *mut Option<HWND>) = Some(hwnd);
                 return BOOL(0);

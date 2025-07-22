@@ -8,11 +8,18 @@ mod backend;
 mod frontend;
 mod utils;
 
+use std::sync::Arc;
+
 use app::{APP_ID, OverlayApp};
 use eframe::{CreationContext, NativeOptions, run_native};
 
 fn main() {
-    let native_opts: NativeOptions = NativeOptions {
+    let icon_data = eframe::icon_data::from_png_bytes(include_bytes!(
+        "../assets/icons/pokemmo-companion-main.png"
+    ))
+    .expect("The icon data must be valid");
+
+    let mut native_opts: NativeOptions = NativeOptions {
         window_builder: Some(Box::new(|builder| {
             builder
                 .with_maximized(true)
@@ -27,9 +34,11 @@ fn main() {
                 .with_taskbar(true)
                 .with_title(APP_ID)
                 .with_app_id(APP_ID)
+            // .with_icon(icon_data) // doesn't work like it should
         })),
         ..Default::default()
     };
+    native_opts.viewport.icon = Some(Arc::new(icon_data)); // fix for .with_icon issue
 
     run_native(
         APP_ID,

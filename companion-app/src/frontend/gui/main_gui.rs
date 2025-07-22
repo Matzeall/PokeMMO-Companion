@@ -1,6 +1,6 @@
 use crate::frontend::style;
 use crate::{app::OverlayApp, backend::feature_state::Feature};
-use egui::{Align2, Color32, Frame, Image, ImageButton, Label, Vec2, Window};
+use egui::{Align2, Color32, Image, ImageButton, Vec2, Window};
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
@@ -10,8 +10,9 @@ use super::{
     type_matrix::draw_type_matrix_panel,
 };
 
-pub fn draw_gui(ctx: &egui::Context, frame: &mut eframe::Frame, state: &mut OverlayApp) {
-    draw_perf_panel(ctx, frame);
+pub fn draw_gui(ctx: &egui::Context, _frame: &mut eframe::Frame, state: &mut OverlayApp) {
+    #[cfg(debug_assertions)]
+    draw_perf_panel(ctx, _frame);
 
     // draw UI based on AppState
     if state.viewport_manager.current_focus_state().is_focused() {
@@ -116,7 +117,11 @@ pub fn draw_control_panel(ctx: &egui::Context, state: &mut OverlayApp) {
 ////////////////////////////////////////////////////////////////////////////
 ///  Debug Perf Panel
 ////////////////////////////////////////////////////////////////////////////
+#[cfg(debug_assertions)]
 pub fn draw_perf_panel(ctx: &egui::Context, frame: &mut eframe::Frame) {
+    use egui::Frame;
+    use egui::Label;
+
     Window::new("Perf")
         .frame(Frame {
             shadow: egui::Shadow::NONE,
