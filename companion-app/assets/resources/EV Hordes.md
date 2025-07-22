@@ -85,7 +85,7 @@
 
 - **Hypno**, Berry Forest, **Kanto**
 - **Dewgong**, Icefall Cave, **Kanto**, LVL 46-48
-- **Tentacruel**, Route 20, **Kanto**, LVL 30-35 (Alternative exp spot for Nuz)
+- **Tentacruel**, Island Seven, **Kanto**, LVL 44-48
 - **Lombre**, Route 117, **Hoenn**
 - **Altaria/Claydol**, Sky Pillar, **Hoenn**, LVL 35-37
 - **Gothorita**, Route 9, **Unova**

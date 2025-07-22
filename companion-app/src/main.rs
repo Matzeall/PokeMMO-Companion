@@ -1,3 +1,8 @@
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows" // treat as pure gui app, omit the console
+)]
+
 mod app;
 mod backend;
 mod frontend;
@@ -7,7 +12,6 @@ use app::{APP_ID, OverlayApp};
 use eframe::{CreationContext, NativeOptions, run_native};
 
 fn main() {
-    // Configure eframe (window title, transparency will be set native-side per-platform)
     let native_opts: NativeOptions = NativeOptions {
         window_builder: Some(Box::new(|builder| {
             builder
@@ -28,12 +32,9 @@ fn main() {
     };
 
     run_native(
-        APP_ID, // window/app title
+        APP_ID,
         native_opts,
-        Box::new(|cc: &CreationContext| {
-            // This is called once at startup. Wrap your App in Ok(...)
-            Ok(Box::new(OverlayApp::new(cc)))
-        }),
+        Box::new(|cc: &CreationContext| Ok(Box::new(OverlayApp::new(cc)))),
     )
     .expect("failed to start eframe");
 }

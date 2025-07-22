@@ -71,30 +71,36 @@ impl ViewportManager for DefaultViewportManager {
 
 #[cfg(windows)]
 pub mod windows {
+    use crate::{app::APP_ID, utils::convert_cyrillic_string};
+
     use super::*;
     // windows only imports
 
     use winit::window::Window;
-    use std::sync::mpsc::Sender;
-    use ::windows::Win32::{
-        Foundation::HWND,
-        UI::{
-            Input::KeyboardAndMouse::{MOD_ALT, RegisterHotKey, VK_C, VK_F, VK_V},
-            WindowsAndMessaging::{
-                DispatchMessageW, GWL_EXSTYLE, GetDesktopWindow, GetMessageW, GetWindowLongW, MSG,
-                SW_HIDE, SW_SHOWMAXIMIZED, SetForegroundWindow, SetWindowLongW, ShowWindow,
-                TranslateMessage, WM_HOTKEY, WS_EX_LAYERED, WS_EX_TRANSPARENT,
-            },
-        },
-    };
+    use std::{ffi::OsString, os::windows::ffi::OsStringExt, sync::mpsc::Sender, time::{Duration, Instant}};
+    use ::windows::{core::BOOL, Win32::{
+        Foundation::{HWND, LPARAM}, Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, HMONITOR, MONITORINFO, MONITOR_DEFAULTTONEAREST}, UI::{
+            Input::KeyboardAndMouse::{RegisterHotKey, MOD_ALT, VK_C, VK_F, VK_V}, WindowsAndMessaging::{
+                DispatchMessageW, EnumWindows, GetDesktopWindow, GetMessageW, GetWindowLongW, GetWindowTextLengthW, GetWindowTextW, 
+                IsWindow, IsWindowVisible, SetForegroundWindow, SetWindowLongW, SetWindowPos, ShowWindow, TranslateMessage, GWL_EXSTYLE,
+                MSG, SWP_FRAMECHANGED, SWP_NOSIZE, SWP_NOZORDER, SW_HIDE, SW_RESTORE, SW_SHOW, SW_SHOWMAXIMIZED, WM_HOTKEY, WS_EX_LAYERED, WS_EX_TRANSPARENT
+            }
+        }
+    }};
 
     /// manages the focus state of the main window by calling Win32 native functionality like
     /// RegisterHotKey and the Windows Event Loop
     pub struct NativeViewportManagerWin32 {
         app_focus: FocusState,
+
         focus_state_rx: Option<Receiver<FocusState>>,
-        hwnd_int: isize,
+        pokemmo_window_tx: Option<Sender<Option<isize>>>,
+        
+        overlay_hwnd_int: isize,
+        pokemmo_hwnd_int: Option<isize>,
         winit_window: Arc<Window>,
+
+        last_run_window_update: Instant,
     }
 
     impl NativeViewportManagerWin32 {
@@ -102,15 +108,22 @@ pub mod windows {
             let mut manager = Self {
                 app_focus: FocusState::Focused,
                 focus_state_rx: None,
-                hwnd_int: 0,
+                pokemmo_window_tx: None,
+                overlay_hwnd_int: 0,
+                pokemmo_hwnd_int:None,
                 winit_window,
+                last_run_window_update: Instant::now(),
             };
-
+            
             match window_handle.as_raw() {
                 raw_window_handle::RawWindowHandle::Win32(raw_handle) => {
-                    let hwnd_int = raw_handle.hwnd.get(); // isize is thread safe, pointer not
-                    manager.hwnd_int = hwnd_int;
-                    manager.focus_state_rx = Some(manager.spawn_hotkey_listener_thread());
+                    manager.overlay_hwnd_int = raw_handle.hwnd.get(); // isize is thread safe, pointer not
+                    manager.pokemmo_hwnd_int = find_pokemmo_window_via_iteration().map(|hwnd| hwnd.0 as isize); 
+
+                    let (focus_rx, pokemmo_hwnd_tx)= manager.spawn_hotkey_listener_thread();
+
+                    manager.focus_state_rx = Some(focus_rx); // focus state update receiver
+                    manager.pokemmo_window_tx = Some(pokemmo_hwnd_tx); // hwnd updater
                 }
                 _ => println!(
                     "Error setting up the Listener-thread (no Win32 window handle). \nHotKeys to bring back focus, will not work!"
@@ -122,15 +135,20 @@ pub mod windows {
             manager
         }
 
-        fn spawn_hotkey_listener_thread(&self) -> Receiver<FocusState> {
-            // let egui_ctx = cc.egui_ctx.clone();
-            // let winit_window = self.winit_window.clone();
-            let hwnd_int = self.hwnd_int;
+
+        fn spawn_hotkey_listener_thread(&self) -> (Receiver<FocusState>, Sender<Option<isize>>) {
+            let overlay_hwnd_int = self.overlay_hwnd_int;
+            let pokemmo_hwnd_int= self.pokemmo_hwnd_int;
+
             let (focus_state_tx, focus_state_rx): (Sender<FocusState>, Receiver<FocusState>) =
                 mpsc::channel();
+            let (pokemmo_window_tx, pokemmo_window_rx): (Sender<Option<isize>>, Receiver<Option<isize>>) =
+                mpsc::channel();
+
 
             thread::spawn(move || unsafe {
-                let hwnd = HWND(hwnd_int as *mut _);
+                let overlay_hwnd = HWND(overlay_hwnd_int as *mut _);
+                let mut pokemmo_hwnd =  pokemmo_hwnd_int.map(|i| HWND(i as *mut _));
 
                 // register hotkeys on this thread
                 RegisterHotKey(None, 1, MOD_ALT, VK_F.0 as u32)
@@ -143,6 +161,12 @@ pub mod windows {
                 // thread has it's own Event loop only listening to all global HotKeys
                 let mut msg = MSG::default();
                 while GetMessageW(&mut msg, None, 0, 0).into() {
+                    // receive most recent pokemmo window hwnd
+                    while let Ok(hwnd_maybe) = pokemmo_window_rx.try_recv() {
+                        pokemmo_hwnd = hwnd_maybe.map(|i|  HWND(i as *mut _));
+                        println!("received new pokemmo hwnd: {:?}", pokemmo_hwnd.map(|h| h.0 as isize));
+                    }
+
                     if msg.message == WM_HOTKEY {
                         let key_id = msg.wParam.0;
                         // println!("Pressed HotKey ({key_id})");
@@ -150,67 +174,28 @@ pub mod windows {
                             1 => {
                                 println!("Focus Overlay");
 
-                                show_window_maximized(hwnd);
-
-                                // winit_window.set_visible(true);
-                                // winit_window.set_maximized(true);
-                                // winit_window.set_window_level(winit::window::WindowLevel::AlwaysOnTop);
-                                // winit_window.set_transparent(false);
-                                // winit_window.set_cursor_hittest(true);
-                                // winit_window.focus_window();
-                                // winit_window.request_redraw();
+                                show_window_maximized(overlay_hwnd,true);
+                                disable_overlay_click_through(overlay_hwnd);
 
                                 let _ = focus_state_tx.send(FocusState::Focused); // notify main thread 
-
-                                // egui_ctx
-                                //     .send_viewport_cmd(egui::ViewportCommand::Maximized(true));
-                                // egui_ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
-                                // egui_ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
-                                //     egui::WindowLevel::AlwaysOnTop,
-                                // ));
-                                // egui_ctx.send_viewport_cmd(egui::ViewportCommand::Transparent(
-                                //     false,
-                                // ));
-                                // egui_ctx.send_viewport_cmd(
-                                //     egui::ViewportCommand::MousePassthrough(false),
-                                // );
-                                // egui_ctx.request_repaint();
                             }
                             2 => {
                                 println!("Close Overlay");
 
-                                hide_window(hwnd);
-
-                                // winit_window.set_visible(false);
-                                // winit_window.request_redraw();
+                                hide_window(overlay_hwnd);
 
                                 let _ = focus_state_tx.send(FocusState::Hidden); // notify main thread 
-
-                                // egui_ctx
-                                //     .send_viewport_cmd(egui::ViewportCommand::Visible(false));
-                                // egui_ctx.request_repaint();
                             }
                             3 => {
                                 println!("Make Overlay non-interactable");
 
-                                enable_overlay_click_through(hwnd);
-
-                                // winit_window.set_visible(true);
-                                // winit_window.set_maximized(true);
-                                // winit_window.set_window_level(winit::window::WindowLevel::AlwaysOnTop);
-                                // winit_window.set_transparent(true);
-                                // winit_window.set_cursor_hittest(false);
-                                // winit_window.focus_window();
-                                // winit_window.request_redraw();
+                                show_window_maximized(overlay_hwnd,true);
+                                enable_overlay_click_through(overlay_hwnd);
+                                if let Some(pokemmo_hwnd) = pokemmo_hwnd {
+                                    show_window_maximized(pokemmo_hwnd, false);
+                                } 
 
                                 let _ = focus_state_tx.send(FocusState::Unfocused); // notify main thread 
-
-                                // egui_ctx.send_viewport_cmd(egui::ViewportCommand::Transparent(
-                                //     true,
-                                // ));
-                                // egui_ctx.send_viewport_cmd(
-                                //     egui::ViewportCommand::MousePassthrough(true),
-                                // );
                             }
                             _ => {}
                         }
@@ -219,7 +204,7 @@ pub mod windows {
                     DispatchMessageW(&msg);
                 }
             });
-            focus_state_rx
+            (focus_state_rx,pokemmo_window_tx)
         }
     }
 
@@ -231,9 +216,34 @@ pub mod windows {
                     self.app_focus = focus_update;
                 }
             }
-            //TODO: once eframe bug is resolved, implement singular means of switching between
-            // focus_states to avoid desyncs, but since switch must be done partially on the thread for
-            // now only update the result
+
+            // occasionally refresh pokemmo window reference and move overlay to the same monitor
+            let now = Instant::now();
+            if now.duration_since(self.last_run_window_update)>= Duration::from_secs(1) {
+                self.last_run_window_update = now;
+
+                if is_window_alive(self.pokemmo_hwnd_int.map(|i| HWND(i as *mut _))) {
+                    let pokemmo_window: HWND = self.pokemmo_hwnd_int.map(|i| HWND(i as *mut _))
+                        .expect("pokemmo hwnd was \"None\" although it's window was checked before => not possible");
+                    let overlay_window: HWND = HWND(self.overlay_hwnd_int as *mut _);
+
+                    let pokemmo_monitor = unsafe { MonitorFromWindow(pokemmo_window, MONITOR_DEFAULTTONEAREST)};
+                    let overlay_monitor = unsafe { MonitorFromWindow(overlay_window, MONITOR_DEFAULTTONEAREST)};
+
+                    if overlay_monitor != pokemmo_monitor {
+                        println!("switching overlay monitor to pokemmo monitor ({:?} => {:?})", overlay_monitor, pokemmo_monitor);
+                        maximize_on_target_monitor(overlay_window, pokemmo_monitor);
+                    }
+                } else {
+                    let window_opt= find_pokemmo_window_via_iteration().map(|hwnd| hwnd.0 as isize);
+                    if window_opt != self.pokemmo_hwnd_int {
+                        self.pokemmo_hwnd_int = window_opt;
+                        if let Some(tx) = &self.pokemmo_window_tx {
+                            let _ = tx.send(window_opt);
+                        }
+                    }
+                }
+            }
         }
 
         fn current_focus_state(&self) -> FocusState {
@@ -241,11 +251,110 @@ pub mod windows {
         }
     }
 
-    fn show_window_maximized(hwnd: HWND) {
+    fn maximize_on_target_monitor(overlay_hwnd: HWND, target_monitor: HMONITOR)   {
         unsafe {
-            let _ = ShowWindow(hwnd, SW_SHOWMAXIMIZED);
+            // needs to be initialized specially
+            let mut monitor_info = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as _,
+                ..Default::default()
+            };
+
+            let _ = GetMonitorInfoW(target_monitor, &mut monitor_info);
+      
+            // this is necessary to clear the windows caches maximize size, 
+            // otherwise the last call doesn't work correctly
+            let _ = ShowWindow(overlay_hwnd, SW_RESTORE);
+
+            // Move window onto target monitor (keeping size/Z-order)
+            let workarea = monitor_info.rcWork;
+            // println!("target_monitor workarea: {:?}",workarea);
+            let _ = SetWindowPos(
+                overlay_hwnd,
+                None,
+                workarea.left,
+                workarea.top,
+                workarea.right - workarea.left,
+                workarea.bottom - workarea.top,
+                SWP_NOSIZE | SWP_NOZORDER| SWP_FRAMECHANGED, // don't change and zorder
+            );
+
+            // maximize, because now the window is on the correct monitor
+            let _ = ShowWindow(overlay_hwnd, SW_SHOWMAXIMIZED);
+        }
+    }
+
+
+    /// Iterating over all top-level windows is the only way, since pokemmo randomely has cyrillic
+    /// letters in their title, this way I can filter that out
+    fn find_pokemmo_window_via_iteration() -> Option<HWND> {
+        let mut found: Option<HWND> = None;
+
+        // weird windows syntax, but it just iterates all top-level windows and handles output
+        // through that LPARAM parameter
+        unsafe {
+            let _ = EnumWindows(
+                Some(enum_proc),
+                LPARAM(&mut found as *mut _ as isize),
+            );
+        }
+
+        if let Some(window)= &found {
+            println!("found pokemmo window: {}", window.0 as isize);
+        }else {
+            println!("pokemmo window not found...");
+        }
+
+        found
+    }
+
+    extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        unsafe {
+            // skip hidden windows
+            if !IsWindowVisible(hwnd).as_bool() {
+                return BOOL(1);
+            }
+
+            // get the length of the title
+            let len = GetWindowTextLengthW(hwnd);
+            if len <= 0 {
+                return BOOL(1);
+            }
+
+            // read into a temporary buffer
+            let mut buf = vec![0u16; (len + 1) as usize];
+            let read = GetWindowTextW(hwnd, &mut buf);
+            if read <= 0 {
+                return BOOL(1);
+            }
+
+            // convert and lowercase
+            let title = OsString::from_wide(&buf[..read as usize])
+                .to_string_lossy()
+                .to_lowercase();
+
+            // Weird edge case where the game title is in Cyrillic in some moments
+            let cleaned_title = convert_cyrillic_string(title.as_str());
+            // println!("title in question: {cleaned_title}");
+            if cleaned_title.contains("pokemmo") && !cleaned_title.contains("companion") && !cleaned_title.contains(APP_ID) {
+                // store and stop enumeration
+                *(lparam.0 as *mut Option<HWND>) = Some(hwnd);
+                return BOOL(0);
+            }
+        }
+        // keep searching
+        BOOL(1)
+    }
+
+    fn is_window_alive(hwnd_optional: Option<HWND>) -> bool {
+        unsafe { IsWindow(hwnd_optional).as_bool() }
+    }
+
+    fn show_window_maximized(hwnd: HWND, show_maximized: bool) {
+        let show_type = if show_maximized {SW_SHOWMAXIMIZED} else {SW_SHOW};
+        unsafe {
+            let _ = ShowWindow(hwnd, show_type);
+            
             let _ = SetForegroundWindow(hwnd);
-            disable_overlay_click_through(hwnd);
         }
     }
 
@@ -261,7 +370,6 @@ pub mod windows {
             let new_style = (ex_style as u32 | WS_EX_LAYERED.0 | WS_EX_TRANSPARENT.0) as i32;
             SetWindowLongW(hwnd, GWL_EXSTYLE, new_style);
             // reset focus to some other window (desktop) to lose text edit keyboard focus e.g.
-            // TODO: maybe even search for the PokeMMO binary running and focus that?
             let _ = SetForegroundWindow(GetDesktopWindow());
         }
     }

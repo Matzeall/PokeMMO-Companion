@@ -75,3 +75,32 @@ pub fn read_in_all_markdown_files(path: PathBuf) -> Result<Vec<(String, String)>
     }
     Ok(md_file_list)
 }
+
+pub fn convert_cyrillic_string(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| match c {
+            'А' => 'A',
+            'В' => 'B',
+            'Е' => 'E',
+            'К' => 'K',
+            'М' => 'M',
+            'Н' => 'H',
+            'О' => 'O',
+            'Р' => 'P',
+            'С' => 'S',
+            'Т' => 'T',
+            'У' => 'Y',
+            'Х' => 'X',
+            'а' => 'a',
+            'е' => 'e',
+            'о' => 'o',
+            'р' => 'p',
+            'с' => 's',
+            'у' => 'y',
+            'х' => 'x',
+            'м' => 'm',
+            other => other, // Leave non-Cyrillic characters unchanged
+        })
+        .collect()
+}

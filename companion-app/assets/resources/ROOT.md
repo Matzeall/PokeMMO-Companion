@@ -1,6 +1,6 @@
 <WebLink= PokeMMO Hub, https://pokemmohub.com>
 <WebLink= PokeMMO Info, https://pokemmo.info>
-<AppLink= EV Hordes, EV Hordes>
+<AppLink= EV Hordes Overview, EV Hordes Overview>
 <WebLink= PokeDex by Route, https://forums.pokemmo.com/index.php?/topic/145374-pokemon-encounter-index-for-pokemmo>
 <AppLink= Nature Info, NatureInfo>
 <AppLink= EV Berries, EV Berries>
