@@ -27,6 +27,12 @@
 > [!NOTE]
 > You must also repeat this process to update to a newer release, since I haven't had the time to make a proper installer.\
 > Just be sure to copy over all custom changes you made to the resources folder.
+
+> [!WARNING]
+> The Ubuntu(Linux) release doesn't yet work well as an overlay over PokeMMO. For now disabling the overlay functionality in the settings (Alt + O) and switching between PokeMMO and the companion-app by Alt-tabbing is probably the most convenient way to use the app on ubuntu.\
+> I experimented with some stuff for wayland compositors, but it turns out to be quite clunky right now.
+> To get it somewhat working you could accept the sudo privileges for noticing hotkeys at application start and then manually click on the top application bar -> select "Always on top", since e.g. Gnome DE sadly ignores all automated calls to set the layer. Maximizing the window also negates the "Always on top"-effect, therefore I prohibit it.\
+> But since I mainly play on ubuntu I will have a look into the more relaxed X11 frontend soon, and try to get the overlay functionality working there too. Please open an issue if you also wait for that support, so I know there is a demand for it. 
  
 ## Features
 #### Overlay Functionality
