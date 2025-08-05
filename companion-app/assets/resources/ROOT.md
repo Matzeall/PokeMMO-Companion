@@ -12,7 +12,7 @@
 
 ##### PVE Guides
 
-<WebLink= Ho-Oh Guide,https://forums.pokemmo.com/index.php?/topic/186374-complete-ho-oh-rematch-guide-easiest-method-10-turns-no-consumable-items/>
+<AppLink=Ho-Oh-Guide,Ho-Oh-Guide>
 <WebLink= Patrouski Complete PokeDex Guide, https://www.youtube.com/watch?v=_dWR0u1d4Y0>
 
 ##### Dev
