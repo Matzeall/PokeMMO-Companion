@@ -1,6 +1,6 @@
 [workspace]
-members = ["hotkey-daemon", "companion-app"]
-resolver = "3"                               # dependency / crate resolver, for Rust 2024 usuall pick 3
+members = ["hotkey-daemon", "companion-app", "data-builder"]
+resolver = "3"                                               # dependency / crate resolver, for Rust 2024 usuall pick 3
 
 [patch.crates-io]
 eframe = { git = "https://github.com/Matzeall/egui_fixes.git", branch = "patch-eframe-0.31.1", package = "eframe" }
