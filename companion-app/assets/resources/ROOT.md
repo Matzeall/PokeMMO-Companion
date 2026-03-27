@@ -1,9 +1,11 @@
 <WebLink= PokeMMO Hub, https://pokemmohub.com>
 <WebLink= PokeMMO Info, https://pokemmo.info>
 <AppLink= EV Hordes Overview, EV Hordes Overview>
-<WebLink= PokeDex by Route, https://forums.pokemmo.com/index.php?/topic/145374-pokemon-encounter-index-for-pokemmo>
 <AppLink= Nature Info, NatureInfo>
 <AppLink= EV Berries, EV Berries>
+<AppLink= Roaming Legendaries Calendar,Roaming-Legendaries-Calendar>
+<WebLink= PokeDex by Route, https://forums.pokemmo.com/index.php?/topic/145374-pokemon-encounter-index-for-pokemmo>
+<AppLink= Level Caps, Level-Caps>
 
 ##### Money
 
@@ -15,6 +17,7 @@
 <AppLink=Ho-Oh-Guide,Ho-Oh-Guide>
 <WebLink= Patrouski Complete PokeDex Guide, https://www.youtube.com/watch?v=_dWR0u1d4Y0>
 
-##### Dev
+##### Miscellaneous
 
-<WebLink= pokemmo-data, https://github.com/PokeMMO-Tools/pokemmo-data>
+<WebLink= customizable client theme (archetype), https://github.com/ssjshields/archetype>
+<WebLink= pokemmo-data (dev), https://github.com/PokeMMO-Tools/pokemmo-data>

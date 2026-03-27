@@ -1,4 +1,4 @@
-pub mod breeding_calculator;
+pub mod language_helper;
 pub mod main_gui;
 pub mod notes;
 pub mod resources;

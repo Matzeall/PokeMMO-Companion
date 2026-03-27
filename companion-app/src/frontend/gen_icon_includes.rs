@@ -13,6 +13,10 @@ pub fn get_icon_map() -> HashMap<String, ImageSource<'static>> {
         include_image!("../../assets/icons/feature_breedingcalculator.png"),
     );
     m.insert(
+        "feature_languagehelper".to_owned(),
+        include_image!("../../assets/icons/feature_languagehelper.png"),
+    );
+    m.insert(
         "feature_notes".to_owned(),
         include_image!("../../assets/icons/feature_notes.png"),
     );

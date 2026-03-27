@@ -106,9 +106,7 @@ fn main() -> anyhow::Result<()> {
         let locale_additional_translations: IndexMap<String, String> =
             parse_json_items_from_file_to_index_map::<String, String>(
                 &args.locale_dir.join("additional_translations.json"),
-            )
-            .into_iter()
-            .collect();
+            );
         let (unique_location_lookup, pokedex_location_lookup) =
             locations::build_location_locale_lookup(
                 en_monster_locations,
@@ -137,9 +135,7 @@ fn main() -> anyhow::Result<()> {
         let locale_additional_translations: IndexMap<String, String> =
             parse_json_items_from_file_to_index_map::<String, String>(
                 &args.locale_dir.join("additional_translations.json"),
-            )
-            .into_iter()
-            .collect();
+            );
         let miscellaneous_locale_lookup = miscellaneous::build_miscellaneous_locale_lookup(
             en_string_dump,
             locale_string_dump,

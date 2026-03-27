@@ -13,7 +13,7 @@ pub enum Feature {
     Notes,
     Resources,
     TypeMatrix,
-    BreedingCalculator,
+    LanguageHelper,
     Settings,
 }
 
@@ -70,10 +70,10 @@ impl FeatureSubsystem {
                 !self.is_feature_active(Feature::TypeMatrix),
             );
         }
-        if input.consume_key(Modifiers::ALT, Key::B) {
+        if input.consume_key(Modifiers::ALT, Key::L) {
             self.set_feature_active(
-                Feature::BreedingCalculator,
-                !self.is_feature_active(Feature::BreedingCalculator),
+                Feature::LanguageHelper,
+                !self.is_feature_active(Feature::LanguageHelper),
             );
         }
         if input.consume_key(Modifiers::ALT, Key::O) {

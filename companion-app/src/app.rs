@@ -7,14 +7,17 @@
 //            self.curr_page = 1;
 //       })
 
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 use eframe::{App, CreationContext, Frame};
+use egui::{Context, Modifiers};
 
 use crate::{
     backend::{
         self,
+        async_manager::AsyncManager,
         feature_state::FeatureSubsystem,
+        locales::LocaleSubsystem,
         notes_feature::NotesSubsystem,
         ressources_feature::RessourcesSubsystem,
         settings::SettingsSubsystem,
@@ -26,7 +29,6 @@ use crate::{
         viewport::{self, DefaultViewportManager, ViewportManager},
     },
 };
-use egui::{Context, Modifiers};
 
 pub const APP_ID: &str = "pokemmo-companion";
 
@@ -45,6 +47,11 @@ pub struct OverlayApp {
 
     pub notes: NotesSubsystem,
 
+    pub locales: LocaleSubsystem,
+
+    #[allow(dead_code)]
+    pub async_manager: Rc<AsyncManager>,
+
     storage: Box<dyn PersistentStorage>,
 
     pub viewport_manager: Box<dyn ViewportManager>,
@@ -54,12 +61,18 @@ pub struct OverlayApp {
 impl OverlayApp {
     pub fn new(cc: &CreationContext<'_>) -> Self {
         println!("Creating App ...");
+
+        // tokio async manager only ever needs immutable access to schedule new tasks
+        let async_manager = Rc::new(AsyncManager::new());
+
         let mut app = Self {
             features: FeatureSubsystem::new(),
             gui: GuiSubsystem::new(cc),
             settings: SettingsSubsystem::new(),
             ressources: RessourcesSubsystem::new(),
             notes: NotesSubsystem::new(),
+            locales: LocaleSubsystem::new(async_manager.clone()),
+            async_manager: async_manager.clone(),
             storage: Box::new(FileStorage::new()),
             viewport_manager: Box::new(DefaultViewportManager::default()),
             winit_window: cc.winit_window.clone(),
@@ -79,12 +92,14 @@ impl OverlayApp {
     ) {
         println!("Setup ViewportManager ...");
         self.settings.request_viewport_restart = false;
-        let Some(winit_window) = self
-            .winit_window
-            .clone()
-            // also early out if disabled overlay
-            .filter(|_| !self.settings.disable_overlay)
-        else {
+
+        if self.settings.disable_overlay {
+            println!("overlay-viewport was disabled by the user -> starting non-overlay viewport");
+            self.viewport_manager = Box::new(DefaultViewportManager::default());
+            return;
+        }
+
+        let Some(winit_window) = self.winit_window.clone() else {
             println!(
                 "Couldn't start viewport manager, because winit_window was lost/not valid\n=> Falling back to non-overlay viewport..."
             );
@@ -220,6 +235,8 @@ impl App for OverlayApp {
             })
         }
 
+        self.locales.update_subsystem();
+
         // only handle input when control_bar is also visible
         // and the application is currently meant to be controlled
         if self.viewport_manager.current_focus_state().is_focused() {
@@ -261,7 +278,11 @@ impl App for OverlayApp {
         }
     }
 
-    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {}
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        // TODO: implement public immutable handle + private mutable reference pattern
+        // or accept to not shutdown async_manager gracefully, but by dropping it out of the blue
+        // self.async_manager.shutdown(); // shutdown tokio runtime gracefully
+    }
 
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(20)

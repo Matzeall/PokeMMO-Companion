@@ -1,4 +1,6 @@
+pub mod async_manager;
 pub mod feature_state;
+pub mod locales;
 pub mod notes_feature;
 pub mod ressources_feature;
 pub mod settings;

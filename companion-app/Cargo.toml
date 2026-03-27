@@ -5,28 +5,43 @@ edition = "2024"
 build = "build.rs"
 
 [dependencies]
-# ——— GUI: egui + eframe (uses winit/glow internally) ——————————————————————————
+# --- GUI: egui + eframe (uses winit/glow internally) ----------------
 eframe = { version = "0.31", features = ["persistence", "wayland", "x11"] }
 egui = "0.31"                                                               # core immediate‐mode GUI library
 egui_extras = { version = "0.31", features = ["default", "all_loaders"] }
 winit = "0.30.11"
+# --- Raw window handles (also used by eframe internally) ------------
+raw-window-handle = "0.6" # gives me HWND/WlSurface/Window under the hood, when I need functionality that exceeds eframe
+
 # for images in markdown & egui elements:
 image = { version = "0.25", features = ["png", "jpeg"] }
 egui_commonmark = "0.20"
 pulldown-cmark = "0.13.0"
 
+# --- Backend Stuff -----------------------------------
 regex = "1.11.1"
 
 strum = "0.27"        # for the IntoEnumIterator trait
 strum_macros = "0.27" # for #[derive(EnumIter)]
 
-serde = "1.0.219" # data serializer for persisting state 
-toml = "0.8.23"   # save-file format (easily human readable)
+serde = "1.0.219"  # data serializer for persisting state 
+serde_json = "1.0"
+toml = "0.8.23"    # save-file format (easily human readable)
 
-# ——— Raw window handles (also used by eframe internally) ————————————————————————
-raw-window-handle = "0.6" # gives me HWND/WlSurface/Window under the hood, when I need functionality that exceeds eframe
+tokio = { version = "1", features = [
+  "rt-multi-thread",
+  "macros",
+  "sync",
+  "fs",
+  "time",
+] } # async scheduling
+reqwest = { version = "0.11", features = [
+  "json",
+  "rustls-tls",
+] } # HTTP Requests
+anyhow = "1.0" # easy error handling, perfect middle-ground 
 
-# linux specific dependencies
+### linux specific dependencies ##############################################
 [target.'cfg(unix)'.dependencies]
 # ——— X11 support (Rust bindings to XCB) (optional) ————————————————————————
 x11rb = { version = "0.13.1", features = ["allow-unsafe-code"] }
@@ -37,7 +52,7 @@ users = "0.11" # to provide user's current uid and gid
 wayland-client = "0.31"
 wayland-protocols = "0.32"
 
-# windows specific dependencies
+### windows specific dependencies #############################################
 [target.'cfg(windows)'.dependencies]
 # ——— Windows APIs via windows‐rs ————————————————————————————————————————
 windows = { version = "0.61", features = [

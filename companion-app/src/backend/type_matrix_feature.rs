@@ -3,7 +3,7 @@ use strum_macros::EnumIter;
 /// TYPE_EFFECTIVENESS\[atk\]\[def\] = damage multiplier
 #[rustfmt::skip]
 pub const TYPE_EFFECTIVENESS: [[f32; 17]; 17] = [
-    // Def:   N    F    Fl   P    G    R    B    Gh   St   Fi   Wa   Gr   El   Ps   I    D    Dk
+    // Def:  N    F    Fl   P    G    R    B    Gh   St   Fi   Wa   Gr   El   Ps   I    D    Dk
     /*N*/ [ 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ],
     /*F*/ [ 2.0, 1.0, 0.5, 0.5, 1.0, 2.0, 0.5, 0.0, 2.0, 1.0, 1.0, 1.0, 1.0, 0.5, 2.0, 1.0, 2.0 ],
     /*Fl*/[ 1.0, 2.0, 1.0, 1.0, 1.0, 0.5, 2.0, 1.0, 0.5, 1.0, 1.0, 2.0, 0.5, 1.0, 1.0, 1.0, 1.0 ],

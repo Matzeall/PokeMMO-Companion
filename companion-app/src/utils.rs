@@ -6,6 +6,8 @@ use std::{
     path::PathBuf,
 };
 
+use serde::Deserialize;
+
 pub fn find_asset_folder() -> io::Result<PathBuf> {
     const ASSETS_DIR_NAME: &str = "assets";
 
@@ -76,6 +78,7 @@ pub fn read_in_all_markdown_files(path: PathBuf) -> Result<Vec<(String, String)>
     Ok(md_file_list)
 }
 
+#[allow(dead_code)]
 pub fn convert_cyrillic_string(input: &str) -> String {
     input
         .chars()
@@ -103,4 +106,37 @@ pub fn convert_cyrillic_string(input: &str) -> String {
             other => other, // Leave non-Cyrillic characters unchanged
         })
         .collect()
+}
+
+/// - overrides any existing file at the given destination
+/// - creates any directories not present towards the destination path
+/// - returns a reqwest error when URL is bad (e.g. reqwest::StatusCode::BAD_REQUEST)
+pub async fn download_to_path(url: &str, dest: PathBuf) -> anyhow::Result<PathBuf> {
+    // Use reqwest for HTTP; stream to tokio::fs file to avoid allocating entire body in memory.
+    let client = reqwest::Client::new();
+    let mut resp = client.get(url).send().await?.error_for_status()?;
+
+    // create parent dirs
+    if let Some(parent) = dest.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+
+    let tmp = dest.with_extension("tmp");
+    let mut file = tokio::fs::File::create(&tmp).await?;
+
+    use tokio::io::AsyncWriteExt;
+    while let Some(chunk) = resp.chunk().await? {
+        file.write_all(&chunk).await?;
+    }
+    // make sure to finish writing
+    file.sync_all().await?;
+    file.flush().await?;
+
+    // Windows: remove existing file first to avoid rename failure
+    let _ = tokio::fs::remove_file(&dest).await;
+
+    // commit file download by renaming into place
+    tokio::fs::rename(&tmp, &dest).await?;
+
+    Ok(dest)
 }

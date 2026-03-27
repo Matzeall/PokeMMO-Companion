@@ -1,6 +1,6 @@
 use crate::{
     app::OverlayApp,
-    backend::{feature_state::Feature, settings::SettingsSubsystem},
+    backend::{feature_state::Feature, locales::LocaleSubsystem, settings::SettingsSubsystem},
     frontend::utils::construct_base_window,
 };
 use egui::{
@@ -20,6 +20,8 @@ pub fn draw_options_panel(ctx: &egui::Context, state: &mut OverlayApp) {
                         .inner_margin(Margin::symmetric(10, 0))
                         .show(ui, |ui| {
                             ui.with_layout(Layout::top_down(Align::Max), |ui| {
+                                // TODO: Add section headings and refactor into section functions
+
                                 global_application_scale_slider(ctx, ui);
 
                                 disable_overlay_checkbox(ui, &mut state.settings);
@@ -27,6 +29,8 @@ pub fn draw_options_panel(ctx: &egui::Context, state: &mut OverlayApp) {
                                 transparent_bg_always_checkbox(ui, &mut state.settings);
 
                                 typematrix_scale_slider(ui, &mut state.settings);
+
+                                locale_state_section(ui, &mut state.locales);
 
                                 reset_ui_data(ui, &mut state.settings);
                             });
@@ -84,4 +88,53 @@ fn global_application_scale_slider(ctx: &egui::Context, ui: &mut egui::Ui) {
     if resp.changed() {
         ctx.set_pixels_per_point(dpi);
     }
+}
+
+fn locale_state_section(ui: &mut egui::Ui, locales: &mut LocaleSubsystem) {
+    ui.with_layout(Layout::top_down(Align::Min), |ui| {
+        ui.heading("Locale Data");
+
+        // Download button
+        match &locales.is_initialized {
+            true => {
+                ui.label(format!(
+                    "Locale Version : v{}",
+                    locales.get_locale_definition_version()
+                ));
+                ui.label("Available Locales :");
+                let mut list: String = "    | ".into();
+                for locale_name in locales.get_available_locales() {
+                    list += &locale_name;
+                    list += " | "
+                }
+                ui.label(list);
+            }
+            false => {
+                ui.label("LocaleSubsystem not initialized yet");
+            }
+        };
+
+        if !locales.is_initializing() && !locales.is_updating() {
+            if ui
+                .add_sized(
+                    Vec2::new(ui.available_width(), 30.),
+                    Button::new("Re-Initialize"),
+                )
+                .clicked()
+            {
+                locales.trigger_initialization();
+            }
+            if ui
+                .add_sized(
+                    Vec2::new(ui.available_width(), 30.),
+                    Button::new("Update Locales"),
+                )
+                .clicked()
+            {
+                locales.trigger_locale_update();
+            }
+        }
+    });
+
+    ui.add(Separator::default().grow(5.));
 }

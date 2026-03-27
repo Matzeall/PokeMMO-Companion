@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 use super::{
-    breeding_calculator::draw_breeding_calculator_panel, notes::draw_notes_panel,
+    language_helper::draw_language_helper_panel, notes::draw_notes_panel,
     resources::draw_ressources_panel, settings::draw_options_panel,
     type_matrix::draw_type_matrix_panel,
 };
@@ -25,7 +25,7 @@ pub fn draw_gui(ctx: &egui::Context, _frame: &mut eframe::Frame, state: &mut Ove
 
     draw_type_matrix_panel(ctx, state);
 
-    draw_breeding_calculator_panel(ctx, state);
+    draw_language_helper_panel(ctx, state);
 
     draw_options_panel(ctx, state);
 }
@@ -38,7 +38,7 @@ pub fn draw_control_panel(ctx: &egui::Context, state: &mut OverlayApp) {
         (Feature::Notes, "(Alt+N)"),
         (Feature::Resources, "(Alt+R)"),
         (Feature::TypeMatrix, "(Alt+T)"),
-        (Feature::BreedingCalculator, "(Alt+B)"),
+        (Feature::LanguageHelper, "(Alt+L)"),
         (Feature::Settings, "(Alt+O)"),
     ]);
 
