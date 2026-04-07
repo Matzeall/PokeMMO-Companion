@@ -53,6 +53,26 @@ pub fn get_icon_map() -> HashMap<String, ImageSource<'static>> {
         include_image!("../../assets/icons/shutdown_button.png"),
     );
     m.insert(
+        "text_category_item".to_owned(),
+        include_image!("../../assets/icons/text_category_item.png"),
+    );
+    m.insert(
+        "text_category_location".to_owned(),
+        include_image!("../../assets/icons/text_category_location.png"),
+    );
+    m.insert(
+        "text_category_monster".to_owned(),
+        include_image!("../../assets/icons/text_category_monster.png"),
+    );
+    m.insert(
+        "text_category_move".to_owned(),
+        include_image!("../../assets/icons/text_category_move.png"),
+    );
+    m.insert(
+        "translation_swap".to_owned(),
+        include_image!("../../assets/icons/translation_swap.png"),
+    );
+    m.insert(
         "type_bug".to_owned(),
         include_image!("../../assets/icons/type_bug.png"),
     );

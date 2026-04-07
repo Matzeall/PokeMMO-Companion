@@ -95,7 +95,7 @@ fn locale_state_section(ui: &mut egui::Ui, locales: &mut LocaleSubsystem) {
         ui.heading("Locale Data");
 
         // Download button
-        match &locales.is_initialized {
+        match &locales.is_initialized() {
             true => {
                 ui.label(format!(
                     "Locale Version : v{}",
@@ -114,7 +114,9 @@ fn locale_state_section(ui: &mut egui::Ui, locales: &mut LocaleSubsystem) {
             }
         };
 
-        if !locales.is_initializing() && !locales.is_updating() {
+        if
+        /* !locales.is_initializing() &&*/
+        !locales.is_updating() {
             if ui
                 .add_sized(
                     Vec2::new(ui.available_width(), 30.),

@@ -6,17 +6,15 @@ use std::{
     path::PathBuf,
 };
 
-use serde::Deserialize;
-
 pub fn find_asset_folder() -> io::Result<PathBuf> {
     const ASSETS_DIR_NAME: &str = "assets";
 
     // use folder the executable is in
     let mut base_folder = std::env::current_exe();
-    if let Ok(ref mut folder) = base_folder {
-        if folder.pop() {
-            base_folder = Ok(folder.clone());
-        }
+    if let Ok(ref mut folder) = base_folder
+        && folder.pop()
+    {
+        base_folder = Ok(folder.clone());
     }
 
     // prefer source code project root when in the dev environment
@@ -62,16 +60,15 @@ pub fn read_in_all_markdown_files(path: PathBuf) -> Result<Vec<(String, String)>
         }
         let path = entry?.path();
 
-        if path.is_file() {
-            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                if ext.eq_ignore_ascii_case("md") {
-                    // read contents or write error into the resource
-                    let contents = fs::read_to_string(&path).unwrap_or_else(|e| e.to_string());
-                    // only add resource if filename(used as identifier) is valid, ignore otherwise
-                    if let Some(stem) = path.file_stem().and_then(|os| os.to_str()) {
-                        md_file_list.push((stem.to_owned(), contents));
-                    }
-                }
+        if path.is_file()
+            && let Some(ext) = path.extension().and_then(|s| s.to_str())
+            && ext.eq_ignore_ascii_case("md")
+        {
+            // read contents or write error into the resource
+            let contents = fs::read_to_string(&path).unwrap_or_else(|e| e.to_string());
+            // only add resource if filename(used as identifier) is valid, ignore otherwise
+            if let Some(stem) = path.file_stem().and_then(|os| os.to_str()) {
+                md_file_list.push((stem.to_owned(), contents));
             }
         }
     }
