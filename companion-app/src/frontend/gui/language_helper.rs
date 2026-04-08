@@ -1,6 +1,8 @@
 use crate::{
     app::OverlayApp,
-    backend::{feature_state::Feature, locales::LocaleSubsystem, search_index::SearchIndex},
+    backend::{
+        feature_state::Feature, language_helper::language_helper_feature::LanguageHelperSubsystem,
+    },
     frontend::{gui_subsystem::GuiSubsystem, style, utils::construct_base_window},
 };
 use egui::{
@@ -18,23 +20,24 @@ pub fn draw_language_helper_panel(ctx: &egui::Context, state: &mut OverlayApp) {
     let open_handle = state
         .features
         .get_feature_active_mut_ref(Feature::LanguageHelper);
+
     construct_base_window("Language Helper", state.viewport_manager.as_ref())
         .open(open_handle)
         .show(ctx, |ui| {
-            create_locale_select_bar(&mut state.locales, swap_image, ui);
+            create_locale_select_bar(&mut state.language_helper, swap_image, ui);
 
             ui.add_space(4.);
 
-            create_searchbar(&mut state.locales.search_index, ui);
+            create_searchbar(&mut state.language_helper, ui);
 
             ui.separator();
 
-            create_translation_list(&mut state.locales, &state.gui, ui);
+            create_translation_list(&mut state.language_helper, &state.gui, ui);
         });
 }
 
 fn create_locale_select_bar(
-    locale_subsystem: &mut LocaleSubsystem,
+    language_helper: &mut LanguageHelperSubsystem,
     swap_image: egui::ImageSource<'_>,
     ui: &mut egui::Ui,
 ) {
@@ -43,13 +46,17 @@ fn create_locale_select_bar(
     *button_padding = Vec2::new(5., 5.);
 
     // get current user set values
-    let mut locale_source_selected = locale_subsystem.get_translation_source_locale().clone();
-    let mut locale_target_selected = locale_subsystem.get_translation_target_locale().clone();
+    let mut locale_source_selected = language_helper.get_translation_source_locale().clone();
+    let mut locale_target_selected = language_helper.get_translation_target_locale().clone();
 
-    let available_keys = locale_subsystem.get_available_locales();
+    let available_keys = language_helper.locale_subsystem.get_available_locales();
     let mut available_names = Vec::<String>::new();
     for key in &available_keys {
-        available_names.push(locale_subsystem.get_locale_display_name(key));
+        available_names.push(
+            language_helper
+                .locale_subsystem
+                .get_locale_display_name(key),
+        );
     }
 
     let mut swap_clicked = false;
@@ -70,7 +77,8 @@ fn create_locale_select_bar(
                         .width(ui.available_width())
                         .truncate()
                         .selected_text(
-                            locale_subsystem
+                            language_helper
+                                .locale_subsystem
                                 .get_locale_display_name(&locale_source_selected)
                                 .to_string(),
                         )
@@ -97,7 +105,8 @@ fn create_locale_select_bar(
                         .width(ui.available_width())
                         .truncate()
                         .selected_text(
-                            locale_subsystem
+                            language_helper
+                                .locale_subsystem
                                 .get_locale_display_name(&locale_target_selected)
                                 .to_string(),
                         )
@@ -115,21 +124,21 @@ fn create_locale_select_bar(
     });
 
     // apply user changes back
-    locale_subsystem.set_translation_target_locale(locale_target_selected);
-    locale_subsystem.set_translation_source_locale(locale_source_selected);
+    language_helper.set_translation_target_locale(locale_target_selected);
+    language_helper.set_translation_source_locale(locale_source_selected);
     if swap_clicked {
-        locale_subsystem.swap_translation_locales();
+        language_helper.swap_translation_locales();
     }
 }
 
 fn create_translation_list(
-    locale_subsystem: &mut LocaleSubsystem,
+    language_helper: &mut LanguageHelperSubsystem,
     gui_subsystem: &GuiSubsystem,
     ui: &mut egui::Ui,
 ) {
     let row_height: f32 = 30.0;
 
-    let translation_pairs = locale_subsystem.get_translation_pairs_for_search();
+    let translation_pairs = language_helper.get_translation_pairs_for_search();
 
     ScrollArea::vertical()
         .auto_shrink([false, false])
@@ -186,7 +195,7 @@ fn create_translation_list(
         });
 }
 
-fn create_searchbar(search_index: &mut SearchIndex, ui: &mut egui::Ui) {
+fn create_searchbar(language_helper: &mut LanguageHelperSubsystem, ui: &mut egui::Ui) {
     let search_focus_id = egui::Id::new("language_search_has_focus");
     let search_focused = ui.memory(|r| r.data.get_temp(search_focus_id).unwrap_or(false));
 
@@ -204,7 +213,7 @@ fn create_searchbar(search_index: &mut SearchIndex, ui: &mut egui::Ui) {
         }
     };
 
-    let mut search_prompt = search_index.get_search_prompt();
+    let mut search_prompt = language_helper.get_search_prompt();
     let response = search_frame
         .show(ui, |ui| {
             ui.add(
@@ -218,7 +227,7 @@ fn create_searchbar(search_index: &mut SearchIndex, ui: &mut egui::Ui) {
         })
         .inner;
 
-    search_index.set_search_prompt(search_prompt);
+    language_helper.set_search_prompt(search_prompt);
 
     // has focus update for next frame
     let search_focussed = response.has_focus();

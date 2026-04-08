@@ -18,6 +18,8 @@ pub struct SaveState {
     transparent_background_always: bool,
     personal_notes: String,
     type_matrix_scale: f32,
+    language_helper_source: String,
+    language_helper_target: String,
 }
 
 // default save values
@@ -29,6 +31,8 @@ impl Default for SaveState {
             transparent_background_always: false,
             personal_notes: "".to_string(),
             type_matrix_scale: 1.0,
+            language_helper_source: "".to_string(),
+            language_helper_target: "".to_string(),
         }
     }
 }
@@ -44,6 +48,8 @@ impl From<&OverlayApp> for SaveState {
             transparent_background_always: app.settings.transparent_background_always,
             personal_notes: app.notes.text.clone(),
             type_matrix_scale: app.settings.type_matrix_scale,
+            language_helper_source: app.language_helper.get_translation_source_locale().clone(),
+            language_helper_target: app.language_helper.get_translation_target_locale().clone(),
         }
     }
 }
@@ -55,6 +61,10 @@ pub fn push_save_state_into_app(save_state: SaveState, app: &mut OverlayApp) {
     app.settings.transparent_background_always = save_state.transparent_background_always;
     app.notes.text = save_state.personal_notes.clone();
     app.settings.type_matrix_scale = save_state.type_matrix_scale;
+    app.language_helper
+        .set_translation_target_locale(save_state.language_helper_target);
+    app.language_helper
+        .set_translation_source_locale(save_state.language_helper_source);
 }
 
 /////////////////////////////////////////////////////////////////////

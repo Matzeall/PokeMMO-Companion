@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     app::OverlayApp,
     backend::{feature_state::Feature, locales::LocaleSubsystem, settings::SettingsSubsystem},
@@ -20,8 +22,6 @@ pub fn draw_options_panel(ctx: &egui::Context, state: &mut OverlayApp) {
                         .inner_margin(Margin::symmetric(10, 0))
                         .show(ui, |ui| {
                             ui.with_layout(Layout::top_down(Align::Max), |ui| {
-                                // TODO: Add section headings and refactor into section functions
-
                                 global_application_scale_slider(ctx, ui);
 
                                 disable_overlay_checkbox(ui, &mut state.settings);
@@ -30,7 +30,7 @@ pub fn draw_options_panel(ctx: &egui::Context, state: &mut OverlayApp) {
 
                                 typematrix_scale_slider(ui, &mut state.settings);
 
-                                locale_state_section(ui, &mut state.locales);
+                                locale_state_section(ui, state.locales.clone());
 
                                 reset_ui_data(ui, &mut state.settings);
                             });
@@ -90,7 +90,7 @@ fn global_application_scale_slider(ctx: &egui::Context, ui: &mut egui::Ui) {
     }
 }
 
-fn locale_state_section(ui: &mut egui::Ui, locales: &mut LocaleSubsystem) {
+fn locale_state_section(ui: &mut egui::Ui, locales: Rc<LocaleSubsystem>) {
     ui.with_layout(Layout::top_down(Align::Min), |ui| {
         ui.heading("Locale Data");
 
@@ -114,27 +114,23 @@ fn locale_state_section(ui: &mut egui::Ui, locales: &mut LocaleSubsystem) {
             }
         };
 
-        if
-        /* !locales.is_initializing() &&*/
-        !locales.is_updating() {
-            if ui
-                .add_sized(
-                    Vec2::new(ui.available_width(), 30.),
-                    Button::new("Re-Initialize"),
-                )
-                .clicked()
-            {
-                locales.trigger_initialization();
-            }
-            if ui
-                .add_sized(
-                    Vec2::new(ui.available_width(), 30.),
-                    Button::new("Update Locales"),
-                )
-                .clicked()
-            {
-                locales.trigger_locale_update();
-            }
+        if ui
+            .add_sized(
+                Vec2::new(ui.available_width(), 30.),
+                Button::new("Re-Initialize"),
+            )
+            .clicked()
+        {
+            locales.trigger_initialization();
+        }
+        if ui
+            .add_sized(
+                Vec2::new(ui.available_width(), 30.),
+                Button::new("Update Locales"),
+            )
+            .clicked()
+        {
+            locales.trigger_locale_update();
         }
     });
 

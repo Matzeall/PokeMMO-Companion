@@ -17,6 +17,7 @@ use crate::{
         self,
         async_manager::AsyncManager,
         feature_state::FeatureSubsystem,
+        language_helper::language_helper_feature::LanguageHelperSubsystem,
         locales::LocaleSubsystem,
         notes_feature::NotesSubsystem,
         ressources_feature::RessourcesSubsystem,
@@ -47,7 +48,9 @@ pub struct OverlayApp {
 
     pub notes: NotesSubsystem,
 
-    pub locales: LocaleSubsystem,
+    pub language_helper: LanguageHelperSubsystem,
+
+    pub locales: Rc<LocaleSubsystem>,
 
     #[allow(dead_code)]
     pub async_manager: Rc<AsyncManager>,
@@ -64,6 +67,9 @@ impl OverlayApp {
 
         // tokio async manager only ever needs immutable access to schedule new tasks
         let async_manager = Rc::new(AsyncManager::new());
+        // locale subsystem is mainly read-only, except the occasional re-initialization and locale
+        // update for which it uses interior mutability -> it can be passed around in an Rc
+        let locale_subsystem = Rc::new(LocaleSubsystem::new(async_manager.clone()));
 
         let mut app = Self {
             features: FeatureSubsystem::new(),
@@ -71,7 +77,8 @@ impl OverlayApp {
             settings: SettingsSubsystem::new(),
             ressources: RessourcesSubsystem::new(),
             notes: NotesSubsystem::new(),
-            locales: LocaleSubsystem::new(async_manager.clone()),
+            language_helper: LanguageHelperSubsystem::new(locale_subsystem.clone()),
+            locales: locale_subsystem,
             async_manager: async_manager.clone(),
             storage: Box::new(FileStorage::new()),
             viewport_manager: Box::new(DefaultViewportManager::default()),
@@ -235,7 +242,7 @@ impl App for OverlayApp {
             })
         }
 
-        self.locales.update_subsystem();
+        self.language_helper.update_subsystem();
 
         // only handle input when control_bar is also visible
         // and the application is currently meant to be controlled

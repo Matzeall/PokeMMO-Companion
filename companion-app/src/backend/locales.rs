@@ -1,19 +1,16 @@
-use super::{async_manager::AsyncManager, search_index::SearchIndex};
+use super::async_manager::AsyncManager;
 use crate::utils::{download_to_path, find_asset_folder};
 use serde::{Deserialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
     fs,
     io::{self, ErrorKind},
-    mem,
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, RwLock, mpsc::Receiver},
-    time::{Duration, Instant},
+    sync::{Arc, RwLock},
 };
 
 // TODO: global "automatic download" toggle, so it can be disabled
-const TRANSLATION_UPDATE_INTERVAL: Duration = Duration::from_millis(500);
 const REPO_LOCALE_URL: &str = "https://raw.githubusercontent.com/Matzeall/PokeMMO-Companion/main/companion-app/assets/locales/";
 const LOCALE_FILES: [&str; 7] = [
     "monsters.json",
@@ -56,7 +53,7 @@ pub struct LocalizedText {
 pub struct Locale {
     #[allow(dead_code)]
     pub locale_name: String,
-    pub localized_texts: Vec<LocalizedText>,
+    pub localized_texts: Vec<Arc<LocalizedText>>,
     pub monsters: HashMap<String, usize>,
     pub moves: HashMap<String, usize>,
     pub locations: HashMap<String, usize>,
@@ -127,71 +124,71 @@ impl Locale {
         let mut monster_indices = HashMap::new();
         for (key, text) in monsters {
             monster_indices.insert(key.clone(), localized_texts.len());
-            localized_texts.push(LocalizedText {
+            localized_texts.push(Arc::new(LocalizedText {
                 key,
                 text,
                 category: TextCategory::Monster,
-            });
+            }));
         }
 
         let mut moves_indices = HashMap::new();
         for (key, text) in moves {
             moves_indices.insert(key.clone(), localized_texts.len());
-            localized_texts.push(LocalizedText {
+            localized_texts.push(Arc::new(LocalizedText {
                 key,
                 text,
                 category: TextCategory::Move,
-            });
+            }));
         }
 
         let mut locations_indices = HashMap::new();
         for (key, text) in locations {
             locations_indices.insert(key.clone(), localized_texts.len());
-            localized_texts.push(LocalizedText {
+            localized_texts.push(Arc::new(LocalizedText {
                 key,
                 text,
                 category: TextCategory::Location,
-            });
+            }));
         }
 
         let mut pokedex_location_indices = HashMap::new();
         for (key, text) in locations_pokedex {
             pokedex_location_indices.insert(key.clone(), localized_texts.len());
-            localized_texts.push(LocalizedText {
+            localized_texts.push(Arc::new(LocalizedText {
                 key,
                 text,
                 category: TextCategory::PokedexLocation,
-            });
+            }));
         }
 
         let mut item_indices = HashMap::new();
         for (key, text) in items {
             item_indices.insert(key.clone(), localized_texts.len());
-            localized_texts.push(LocalizedText {
+            localized_texts.push(Arc::new(LocalizedText {
                 key,
                 text,
                 category: TextCategory::Item,
-            });
+            }));
         }
 
         let mut item_description_indices = HashMap::new();
         for (key, text) in item_descriptions {
             item_description_indices.insert(key.clone(), localized_texts.len());
-            localized_texts.push(LocalizedText {
+            localized_texts.push(Arc::new(LocalizedText {
                 key,
                 text,
                 category: TextCategory::ItemDescription,
-            });
+            }));
         }
 
         let mut miscellaneous_indices = HashMap::new();
         for (key, text) in miscellaneous {
             miscellaneous_indices.insert(key.clone(), localized_texts.len());
-            localized_texts.push(LocalizedText {
+            localized_texts.push(Arc::new(LocalizedText {
                 key,
                 text,
                 category: TextCategory::Miscellaneous,
-            });
+            }));
         }
 
         Ok(Self {
@@ -209,40 +206,24 @@ impl Locale {
 }
 
 pub struct LocaleData {
-    locale_definition: LocalesDefinition,
-    locales: HashMap<String, Locale>, // all dictionaries loaded in memory
+    pub locale_definition: LocalesDefinition,
+    pub locales: HashMap<String, Locale>, // all dictionaries loaded in memory
 }
 
 pub struct LocaleSubsystem {
     // core data
-    // pub data: Option<Rc<LocaleData>>,
     pub data: Arc<RwLock<Option<LocaleData>>>,
+    pub init_counter: Arc<RwLock<usize>>, // incremented when data is re-initialized
 
-    // data initialization //////////////////////////
-    init_rx: Option<Receiver<anyhow::Result<LocaleData>>>,
-    update_rx: Option<Receiver<anyhow::Result<()>>>,
     async_manager: Rc<AsyncManager>,
-
-    // translation feature /////////////////////////
-    pub search_index: SearchIndex,
-    // TODO: persist user chosen translation locales
-    // might or might not be valid locale keys at any given time
-    from_locale: String,
-    to_locale: String,
-    last_updated_search: Instant,
 }
 
 impl LocaleSubsystem {
     pub fn new(async_manager: Rc<AsyncManager>) -> LocaleSubsystem {
-        let mut subsystem = LocaleSubsystem {
+        let subsystem = LocaleSubsystem {
             data: Arc::new(RwLock::new(None)),
-            init_rx: None,
-            update_rx: None,
+            init_counter: Arc::new(RwLock::new(0)),
             async_manager: async_manager.clone(),
-            search_index: SearchIndex::new(),
-            from_locale: String::new(),
-            to_locale: String::new(),
-            last_updated_search: Instant::now(),
         };
 
         subsystem.trigger_initialization();
@@ -250,218 +231,33 @@ impl LocaleSubsystem {
         subsystem
     }
 
-    pub fn trigger_initialization(&mut self) {
-        // if self.is_initializing() || self.is_updating() {
-        //     println!("LocaleSubsystem - something weird or init already running, do nothing ...");
-        //     return;
-        // }
-
+    pub fn trigger_initialization(&self) {
         println!("LocaleSubsystem - begin asynchronous initialization");
 
-        // remove current data -> during initialization system should not be able to handle requests
-        // TODO: really?
-        {
-            let mut guard = self.data.write().unwrap();
-            (*guard) = None;
-        }
-        self.init_rx = Some(
-            self.async_manager
-                .spawn_with_response(async { load_data().await }),
-        );
+        let data_ref = self.data.clone();
+        let counter_ref = self.init_counter.clone();
+        // spawn_unique prevents multiple inits at once
+        self.async_manager
+            .spawn_unique("LocaleSubsystem_Init", async move {
+                reload_subsystem_data(data_ref, counter_ref).await;
+            });
     }
 
-    pub fn trigger_locale_update(&mut self) {
-        if
-        /*self.is_initializing() ||*/
-        self.is_updating() {
-            println!("LocaleSubsystem - something weird or update already running, aborting...");
-            return;
-        }
-
+    pub fn trigger_locale_update(&self) {
         let cur_version = self.get_locale_definition_version();
         println!(
             "LocaleSubsystem - begin asynchronous locale update (current version: {cur_version})"
         );
-        self.update_rx = Some(
-            self.async_manager
-                .spawn_with_response(async move { update_locales(cur_version).await }),
-        );
-    }
 
-    // TODO: refactor update tick out into common subsystem interface
-    pub fn update_subsystem(&mut self) {
-        self.poll_init_finished();
-        self.poll_update_finished();
-
-        // update user search index occasionally
-        if Instant::now().duration_since(self.last_updated_search) > TRANSLATION_UPDATE_INTERVAL {
-            if self.search_index.request_full_update {
-                self.update_search_index_full();
-            } else if self.search_index.request_incremental_update {
-                self.filter_search_index_down();
-            }
-        }
-    }
-
-    fn poll_init_finished(&mut self) {
-        let Some(rx) = &self.init_rx else {
-            return; // no initialization running 
-        };
-
-        match rx.try_recv() {
-            Ok(Ok(data)) => {
-                let mut data_writer = self.data.write().unwrap();
-                *data_writer = Some(data);
-                drop(data_writer);
-
-                self.update_search_index_full();
-                self.init_rx = None;
-                println!("LocaleSubsystem - Initialization successful");
-            }
-            Ok(Err(err)) => {
-                eprintln!("LocaleSubsystem - locale init failed, because : {err:?}");
-                self.init_rx = None;
-            }
-            Err(std::sync::mpsc::TryRecvError::Empty) => {
-                // not done yet
-            }
-            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                eprintln!("LocaleSubsystem - locale init task disconnected");
-                self.init_rx = None;
-            }
-        }
-    }
-
-    fn poll_update_finished(&mut self) {
-        let Some(rx) = &self.update_rx else {
-            return; // no update running 
-        };
-
-        match rx.try_recv() {
-            Ok(Ok(())) => {
-                self.update_rx = None;
-                println!("LocaleSubsystem - locale updated finished, starting re-initialization");
-                self.trigger_initialization(); // load new data into LocaleSubsystem
-            }
-            Ok(Err(err)) => {
-                eprintln!("LocaleSubsystem - locale update failed, because : {err:?}");
-                self.update_rx = None;
-            }
-            Err(std::sync::mpsc::TryRecvError::Empty) => {
-                // not done yet
-            }
-            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                eprintln!("LocaleSubsystem - locale update task disconnected");
-                self.update_rx = None;
-            }
-        }
-    }
-
-    // Translation Feature ///////////////////////////////////////////////
-
-    pub fn get_translation_target_locale(&self) -> &String {
-        &self.to_locale
-    }
-
-    pub fn get_translation_source_locale(&self) -> &String {
-        &self.from_locale
-    }
-
-    pub fn set_translation_target_locale(&mut self, locale_key: String) {
-        if self.to_locale == locale_key {
-            return;
-        }
-
-        if !self.get_available_locales().contains(&locale_key) {
-            println!("LocaleSubsystem - tried to set invalid target locale (key: {locale_key})");
-            return;
-        }
-
-        println!("LocaleSubsystem - set translation target locale to: {locale_key})");
-        self.to_locale = locale_key;
-    }
-
-    pub fn set_translation_source_locale(&mut self, locale_key: String) {
-        if self.from_locale == locale_key {
-            return;
-        }
-
-        if !self.get_available_locales().contains(&locale_key) {
-            println!("LocaleSubsystem - tried to set invalid source locale (key: {locale_key})");
-            return;
-        }
-
-        println!("LocaleSubsystem - set translation source locale to: {locale_key})");
-        self.from_locale = locale_key;
-
-        // mark search_index dirty
-        self.search_index.request_full_update = true;
-    }
-
-    pub fn swap_translation_locales(&mut self) {
-        if self.to_locale == self.from_locale {
-            return;
-        }
-        println!("LocaleSubsystem - swapping translation locales");
-
-        let cur_source = self.from_locale.clone();
-        let cur_target = self.to_locale.clone();
-        self.set_translation_target_locale(cur_source);
-        self.set_translation_source_locale(cur_target);
-    }
-
-    fn rebuild_search_index(&mut self) {
-        let index = self
-            .with_locale(&self.from_locale, |locale| {
-                locale
-                    .monsters
-                    .values()
-                    .cloned()
-                    .chain(locale.moves.values().cloned())
-                    .chain(locale.locations.values().cloned())
-                    .chain(locale.items.values().cloned())
-                    .collect()
-            })
-            .unwrap_or_default(); // empty index if not found
-
-        self.search_index.matches = index;
-        self.search_index.request_full_update = false;
-    }
-
-    fn update_search_index_full(&mut self) {
-        self.rebuild_search_index();
-        self.filter_search_index_down();
-    }
-
-    fn filter_search_index_down(&mut self) {
-        let mut search_list = mem::take(&mut self.search_index.matches);
-        let search_prompt = self.search_index.get_search_prompt();
-
-        let filter_function = |locale: &Locale, search_list: &mut Vec<usize>| {
-            search_list.retain(|index| match locale.localized_texts.get(*index) {
-                Some(text) => text
-                    .text
-                    .to_lowercase()
-                    // TODO: could be optimized by custom .starts_with_case_insensitive()
-                    // also è should probably count as e etc., for ease of use
-                    .starts_with(&search_prompt.to_lowercase()),
-                None => false,
+        let data_ref = self.data.clone();
+        let counter_ref = self.init_counter.clone();
+        self.async_manager
+            .spawn_unique("LocaleSubsystem_Update", async move {
+                match update_locales(cur_version).await {
+                    Ok(()) => reload_subsystem_data(data_ref, counter_ref).await,
+                    Err(e) => eprintln!("LocaleSubsystem - Update failed because, {e}"),
+                };
             });
-        };
-
-        let found = self
-            .with_locale(&self.from_locale, |locale| {
-                filter_function(locale, &mut search_list);
-            })
-            .is_some();
-
-        // if for ANY reason no "from-locale" can be found, search_index is emptied
-        if !found {
-            search_list.clear();
-        }
-
-        self.search_index.matches = search_list;
-        self.search_index.request_incremental_update = false;
     }
 
     // GETTERS ///////////////////////////////////////////////////////////
@@ -509,29 +305,6 @@ impl LocaleSubsystem {
             Some(data) => data.locale_definition.version,
         }
     }
-
-    pub fn is_updating(&self) -> bool {
-        self.update_rx.is_some()
-    }
-
-    pub fn get_translation_pairs_for_search(&self) -> Vec<(TextCategory, String, String)> {
-        let mut source_texts = Vec::new();
-        let guard = self.data.read().unwrap();
-
-        if let Some(data) = &*guard
-            && let Some(source_locale) = data.locales.get(&self.from_locale)
-            && let Some(target_locale) = data.locales.get(&self.to_locale)
-        {
-            for i in &self.search_index.matches {
-                if let Some(text) = source_locale.localized_texts.get(*i) {
-                    let translation: String = target_locale.find_localized_text(&text.key);
-                    source_texts.push((text.category, text.text.clone(), translation));
-                }
-            }
-        };
-
-        source_texts
-    }
 }
 
 fn get_locale_definition_path() -> io::Result<PathBuf> {
@@ -540,6 +313,7 @@ fn get_locale_definition_path() -> io::Result<PathBuf> {
 
     Ok(locale_def_file)
 }
+
 fn get_locale_dir_path() -> io::Result<PathBuf> {
     let asset_folder = find_asset_folder()?;
     let locale_dir_path = asset_folder.join("locales/");
@@ -618,6 +392,27 @@ async fn load_data() -> anyhow::Result<LocaleData> {
         locale_definition: def,
         locales,
     })
+}
+
+async fn reload_subsystem_data(
+    data_ref: Arc<RwLock<Option<LocaleData>>>,
+    counter_ref: Arc<RwLock<usize>>,
+) {
+    let result = load_data().await;
+    let mut data_guard = data_ref.write().unwrap();
+    let mut counter_guard = counter_ref.write().unwrap();
+    match result {
+        Ok(data) => {
+            *data_guard = Some(data);
+            *counter_guard += 1;
+            println!("LocaleSubsystem - Initialization successful");
+        }
+        Err(e) => {
+            *data_guard = None;
+            *counter_guard += 1;
+            eprintln!("LocaleSubsystem - error during initialization: {e}");
+        }
+    };
 }
 
 async fn update_locales(current_version: u8) -> anyhow::Result<()> {
