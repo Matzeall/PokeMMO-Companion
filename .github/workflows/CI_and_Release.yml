@@ -74,6 +74,10 @@ jobs:
           cd companion-app
           cp -r --parents assets/resources ../release/ubuntu
           cp -r --parents assets/resources ../release/windows
+          # copy over locales folder
+          cp -r --parents assets/locales ../release/ubuntu
+          cp -r --parents assets/locales ../release/windows
+          
       
       - name: Package Ubuntu (.tar.gz)
         run: |
