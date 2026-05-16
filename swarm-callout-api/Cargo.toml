@@ -1,0 +1,12 @@
+[package]
+name = "swarm-callout-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serenity = "0.12"
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.13", features = ["json"] }
+dotenvy = "0.15"
+chrono = "0.4"
+chrono-tz = "0.10"
